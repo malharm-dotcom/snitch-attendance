@@ -1,384 +1,960 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Attendance — Snitch WH</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Snitch Attendance</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
 <style>
-/* ============================================================
-   CONFIG NOTE FOR NON-DEVELOPERS
-   To add/change facilities or departments, find the
-   "EASY CONFIG" section in the <script> below.
-   Everything else — employees, active status — is managed
-   in Google Sheets. No code changes needed for those.
-   ============================================================ */
+  /* ── TOKENS ─────────────────────────────────────────────── */
+  :root {
+    --bg:        #0f0f0f;
+    --surface:   #171717;
+    --surface2:  #1f1f1f;
+    --border:    #2a2a2a;
+    --border2:   #333;
+    --accent:    #e8ff47;
+    --accent-d:  #c8df20;
+    --text:      #f0f0f0;
+    --text-2:    #888;
+    --text-3:    #555;
+    --danger:    #ff4d4d;
+    --success:   #47e8a0;
+    --warn:      #ffb347;
+    --radius:    10px;
+    --mono:      'DM Mono', monospace;
+    --sans:      'DM Sans', sans-serif;
+  }
 
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-:root{
-  --bg:#F7F6F2;--white:#fff;--ink:#111110;--ink2:#555550;--ink3:#99998F;
-  --line:#E2E1D9;--line2:#C8C8BC;
-  --p:#0A5C38;--p-bg:#D4EFDF;--p-mid:#1A8A55;
-  --a:#8B1A1A;--a-bg:#F5DADA;--a-mid:#C13030;
-  --w:#1A4F8B;--w-bg:#D6E8F7;--w-mid:#2B6CB8;
-  --sl:#7A3B00;--sl-bg:#FDE8C8;--sl-mid:#B05A10;
-  --pl:#3B1A6B;--pl-bg:#EBE0F8;--pl-mid:#6B3FB0;
-  --ul:#8B1A4A;--ul-bg:#FAD6E8;--ul-mid:#C1306A;
-}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding-bottom:100px}
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-.hdr{background:var(--ink);padding:18px 20px 14px;position:sticky;top:0;z-index:20}
-.hdr-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
-.hdr-brand{font-size:11px;font-weight:700;letter-spacing:.14em;color:#777;text-transform:uppercase}
-.hdr-date{font-family:'DM Mono',monospace;font-size:11px;color:#666;background:#1C1C1A;padding:4px 10px;border-radius:100px}
-.hdr-title{font-size:23px;font-weight:700;color:#fff;letter-spacing:-.3px}
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
 
-.tabs{display:flex;background:var(--white);border-bottom:1.5px solid var(--line);position:sticky;top:68px;z-index:19}
-.tab-btn{flex:1;padding:14px 0;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;text-align:center;cursor:pointer;color:var(--ink3);border:none;background:none;border-bottom:2.5px solid transparent;margin-bottom:-1.5px;transition:all .15s}
-.tab-btn.on{color:var(--ink);border-bottom-color:var(--ink)}
+  /* ── TOPBAR ─────────────────────────────────────────────── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .topbar-brand {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .topbar-meta {
+    font-size: 12px;
+    color: var(--text-2);
+    font-family: var(--mono);
+  }
+  .topbar-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text-2);
+  }
+  .logout-btn {
+    background: none;
+    border: 1px solid var(--border2);
+    color: var(--text-2);
+    padding: 4px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 11px;
+    font-family: var(--mono);
+    transition: all .15s;
+  }
+  .logout-btn:hover { border-color: var(--danger); color: var(--danger); }
 
-.form-wrap{padding:20px 20px 0}
-.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
-.field{display:flex;flex-direction:column;gap:6px}
-.field label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)}
-select,input[type=text]{
-  background:var(--white);border:1.5px solid var(--line2);border-radius:8px;
-  padding:13px 38px 13px 14px;font-size:15px;font-family:'DM Sans',sans-serif;
-  font-weight:500;color:var(--ink);width:100%;-webkit-appearance:none;appearance:none;cursor:pointer;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23aaa' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:right 14px center;
-}
-input[type=text]{background-image:none;padding-right:14px}
-select:focus,input:focus{outline:none;border-color:var(--ink);box-shadow:0 0 0 3px rgba(17,17,16,.07)}
-.full-field{margin-bottom:14px}
+  /* ── SCREENS ─────────────────────────────────────────────── */
+  .screen { display: none; flex: 1; }
+  .screen.active { display: flex; }
 
-.load-btn{
-  width:100%;background:var(--ink);color:#fff;border:none;border-radius:8px;
-  padding:15px;font-size:15px;font-family:'DM Sans',sans-serif;font-weight:700;
-  cursor:pointer;transition:opacity .12s,transform .1s;display:flex;align-items:center;justify-content:center;gap:8px;
-}
-.load-btn:active{opacity:.8;transform:scale(.99)}
-.load-btn:disabled{opacity:.5;cursor:default}
-.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:none}
-@keyframes spin{to{transform:rotate(360deg)}}
+  /* ── LOGIN SCREEN ─────────────────────────────────────────── */
+  #login-screen {
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: var(--bg);
+  }
+  .login-card {
+    width: 100%;
+    max-width: 400px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .login-header {
+    background: var(--accent);
+    padding: 28px 28px 24px;
+  }
+  .login-header h1 {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 500;
+    color: #0f0f0f;
+    letter-spacing: -0.01em;
+  }
+  .login-header p {
+    font-size: 12px;
+    color: #3a3a00;
+    margin-top: 4px;
+    font-weight: 500;
+  }
+  .login-body { padding: 28px; }
+  .login-body .field { margin-bottom: 18px; }
+  .login-body label {
+    display: block;
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 7px;
+  }
+  .login-body input, .login-body select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 14px;
+    font-family: var(--sans);
+    padding: 11px 14px;
+    outline: none;
+    transition: border-color .15s;
+    appearance: none;
+  }
+  .login-body input:focus, .login-body select:focus { border-color: var(--accent); }
+  .pin-wrapper { position: relative; }
+  .pin-wrapper input { letter-spacing: 0.3em; font-family: var(--mono); font-size: 18px; }
+  .pin-toggle {
+    position: absolute;
+    right: 12px; top: 50%;
+    transform: translateY(-50%);
+    background: none; border: none;
+    color: var(--text-3); cursor: pointer;
+    font-size: 14px; padding: 4px;
+  }
+  .login-btn {
+    width: 100%;
+    background: var(--accent);
+    color: #0f0f0f;
+    border: none;
+    border-radius: var(--radius);
+    padding: 13px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: var(--sans);
+    cursor: pointer;
+    transition: background .15s, transform .1s;
+    margin-top: 4px;
+  }
+  .login-btn:hover { background: var(--accent-d); }
+  .login-btn:active { transform: scale(0.98); }
+  .login-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .login-error {
+    background: rgba(255,77,77,0.1);
+    border: 1px solid rgba(255,77,77,0.3);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--danger);
+    margin-top: 14px;
+    display: none;
+  }
 
-.strip{display:flex;gap:8px;padding:16px 20px 12px;overflow-x:auto;scrollbar-width:none}
-.strip::-webkit-scrollbar{display:none}
-.chip{display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:100px;font-size:12px;font-weight:700;white-space:nowrap;border:1.5px solid}
+  /* ── MAIN APP SCREEN ─────────────────────────────────────── */
+  #app-screen {
+    flex-direction: column;
+    background: var(--bg);
+  }
 
-.sep{height:1px;background:var(--line);margin:0 20px 16px}
-.emp-list{padding:0 20px}
+  /* ── SESSION BANNER ──────────────────────────────────────── */
+  .session-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(232,255,71,0.07);
+    border-bottom: 1px solid rgba(232,255,71,0.15);
+    padding: 10px 20px;
+    font-size: 12px;
+    font-family: var(--mono);
+    color: var(--accent);
+    flex-wrap: wrap;
+    gap: 6px 16px;
+  }
+  .session-banner span { color: var(--text-2); }
+  .session-pill {
+    background: rgba(232,255,71,0.12);
+    border: 1px solid rgba(232,255,71,0.2);
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: 11px;
+    color: var(--accent);
+  }
 
-.ec{background:var(--white);border:1.5px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px;animation:up .16s ease both}
-.ec.cp{border-color:#1A8A55;background:#FAFFF9}
-.ec.ca{border-color:#C13030;background:#FFFAFA}
-.ec.cw{border-color:#2B6CB8;background:#F9FBFF}
-.ec.cl{border-color:#B05A10;background:#FFFBF5}
-@keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  /* ── MAIN CONTENT ─────────────────────────────────────────── */
+  .app-content { padding: 20px; max-width: 700px; margin: 0 auto; width: 100%; }
 
-.ec-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-.av{width:42px;height:42px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;background:var(--bg);color:var(--ink2);border:1.5px solid var(--line)}
-.en{font-size:15px;font-weight:700;line-height:1.2}
-.ec-code{font-family:'DM Mono',monospace;font-size:12px;color:var(--ink3);margin-top:2px}
+  /* ── DATE STRIP ───────────────────────────────────────────── */
+  .date-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 16px;
+  }
+  .date-label { font-size: 11px; font-family: var(--mono); color: var(--text-2); text-transform: uppercase; letter-spacing: 0.08em; }
+  .date-value { font-family: var(--mono); font-size: 14px; color: var(--text); margin-top: 2px; }
+  .date-input-wrap input[type="date"] {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 8px 12px;
+    outline: none;
+  }
+  .date-input-wrap input[type="date"]:focus { border-color: var(--accent); }
 
-.pills{display:flex;gap:6px;flex-wrap:wrap}
-.pill{padding:7px 13px;border-radius:100px;font-size:12px;font-weight:700;border:1.5px solid var(--line2);cursor:pointer;background:var(--bg);color:var(--ink3);font-family:'DM Sans',sans-serif;transition:all .1s}
-.pill:active{transform:scale(.94)}
-.pill.pP{background:var(--p-bg);color:var(--p);border-color:var(--p-mid)}
-.pill.pA{background:var(--a-bg);color:var(--a);border-color:var(--a-mid)}
-.pill.pW{background:var(--w-bg);color:var(--w);border-color:var(--w-mid)}
-.pill.pS{background:var(--sl-bg);color:var(--sl);border-color:var(--sl-mid)}
-.pill.pPL{background:var(--pl-bg);color:var(--pl);border-color:var(--pl-mid)}
-.pill.pUL{background:var(--ul-bg);color:var(--ul);border-color:var(--ul-mid)}
+  /* ── LOAD EMPLOYEES BTN ───────────────────────────────────── */
+  .load-btn {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 13px;
+    font-size: 14px;
+    font-family: var(--sans);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .load-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .load-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .load-btn .spinner { width: 14px; height: 14px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; display: none; }
+  .load-btn.loading .spinner { display: block; }
+  .load-btn.loading .btn-text { display: none; }
 
-.empty{text-align:center;padding:56px 20px;color:var(--ink3)}
-.empty-ico{font-size:34px;opacity:.4;display:block;margin-bottom:14px}
-.empty p{font-size:14px;line-height:1.7}
-.err-msg{color:#C13030;font-size:13px;margin-top:10px;text-align:center;display:none}
+  /* ── EMPLOYEE LIST ────────────────────────────────────────── */
+  .emp-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .emp-count {
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text-2);
+  }
+  .quick-actions { display: flex; gap: 8px; }
+  .quick-btn {
+    font-size: 11px;
+    font-family: var(--mono);
+    background: none;
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    color: var(--text-2);
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .quick-btn:hover { border-color: var(--accent); color: var(--accent); }
 
-.sub-bar{position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1.5px solid var(--line);padding:12px 20px 22px;display:none;z-index:30}
-.sub-btn{width:100%;background:var(--p);color:#fff;border:none;border-radius:8px;padding:16px;font-size:16px;font-family:'DM Sans',sans-serif;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:opacity .12s,transform .1s}
-.sub-btn:active{opacity:.85;transform:scale(.99)}
-.sub-btn:disabled{background:#aaa;cursor:default}
-.sub-cnt{background:rgba(255,255,255,.25);border-radius:100px;padding:2px 9px;font-size:13px}
+  .emp-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
 
-.toast{position:fixed;bottom:92px;left:50%;transform:translateX(-50%) translateY(14px);background:var(--ink);color:#fff;padding:11px 22px;border-radius:100px;font-size:13px;font-weight:600;opacity:0;transition:all .2s;white-space:nowrap;pointer-events:none;z-index:99}
-.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  .emp-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    align-items: center;
+    transition: border-color .15s;
+  }
+  .emp-row:hover { border-color: var(--border2); }
+  .emp-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .emp-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .emp-code { font-size: 11px; font-family: var(--mono); color: var(--text-2); }
 
-.coming{text-align:center;padding:72px 20px;color:var(--ink3)}
-.coming p{font-size:14px;line-height:1.7;margin-top:10px}
+  .status-select {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 7px;
+    color: var(--text);
+    font-size: 12px;
+    font-family: var(--mono);
+    padding: 6px 10px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color .15s;
+    min-width: 130px;
+  }
+  .status-select:focus { border-color: var(--accent); }
+  .status-select.present  { border-color: rgba(71,232,160,0.4); color: var(--success); }
+  .status-select.absent   { border-color: rgba(255,77,77,0.4); color: var(--danger); }
+  .status-select.week-off { border-color: rgba(136,136,136,0.4); color: var(--text-2); }
+  .status-select.sick-leave    { border-color: rgba(255,179,71,0.4); color: var(--warn); }
+  .status-select.planned-leave { border-color: rgba(100,180,255,0.4); color: #64b4ff; }
+  .status-select.unplanned-leave { border-color: rgba(200,100,255,0.4); color: #c864ff; }
+
+  /* ── REMARKS ─────────────────────────────────────────────── */
+  .emp-row.expanded { grid-template-columns: 1fr; }
+  .emp-row-top { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
+  .remarks-field {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--text-2);
+    font-size: 12px;
+    font-family: var(--sans);
+    padding: 7px 10px;
+    outline: none;
+    width: 100%;
+    resize: none;
+    transition: border-color .15s;
+    margin-top: 8px;
+    display: none;
+  }
+  .remarks-field:focus { border-color: var(--accent); color: var(--text); }
+  .remarks-field.visible { display: block; }
+
+  /* ── SUBMIT ───────────────────────────────────────────────── */
+  .submit-section { margin-top: 8px; }
+  .marked-by-field {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    color: var(--text-2);
+    font-size: 13px;
+    font-family: var(--mono);
+    padding: 11px 14px;
+    width: 100%;
+    margin-bottom: 12px;
+  }
+  .submit-btn {
+    width: 100%;
+    background: var(--accent);
+    color: #0f0f0f;
+    border: none;
+    border-radius: var(--radius);
+    padding: 14px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: var(--sans);
+    cursor: pointer;
+    transition: background .15s, transform .1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .submit-btn:hover { background: var(--accent-d); }
+  .submit-btn:active { transform: scale(0.99); }
+  .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .submit-btn .spinner { width: 16px; height: 16px; border: 2px solid rgba(0,0,0,0.2); border-top-color: #0f0f0f; border-radius: 50%; animation: spin .6s linear infinite; display: none; }
+  .submit-btn.loading .spinner { display: block; }
+  .submit-btn.loading .btn-text { display: none; }
+
+  /* ── TOAST ───────────────────────────────────────────────── */
+  .toast {
+    position: fixed;
+    bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-size: 13px;
+    font-family: var(--mono);
+    color: var(--text);
+    z-index: 999;
+    transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+    white-space: nowrap;
+    max-width: 90vw;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: rgba(71,232,160,0.4); color: var(--success); }
+  .toast.error   { border-color: rgba(255,77,77,0.4); color: var(--danger); }
+  .toast.info    { border-color: rgba(232,255,71,0.3); color: var(--accent); }
+
+  /* ── EMPTY STATE ─────────────────────────────────────────── */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-3);
+    font-size: 13px;
+    font-family: var(--mono);
+    display: none;
+  }
+  .empty-state.visible { display: block; }
+
+  /* ── SUMMARY BAR ─────────────────────────────────────────── */
+  .summary-bar {
+    display: none;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .summary-bar.visible { display: flex; }
+  .sum-chip {
+    font-size: 11px;
+    font-family: var(--mono);
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    color: var(--text-2);
+  }
+  .sum-chip.present  { border-color: rgba(71,232,160,0.3); color: var(--success); }
+  .sum-chip.absent   { border-color: rgba(255,77,77,0.3); color: var(--danger); }
+  .sum-chip.other    { border-color: rgba(136,136,136,0.3); }
+
+  /* ── UTIL ────────────────────────────────────────────────── */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hidden { display: none !important; }
+
+  /* ── MOBILE ──────────────────────────────────────────────── */
+  @media (max-width: 480px) {
+    .emp-row { grid-template-columns: 1fr; }
+    .emp-row-top { grid-template-columns: 1fr; }
+    .status-select { min-width: 100%; }
+    .topbar-meta { display: none; }
+  }
 </style>
 </head>
 <body>
 
-<div class="hdr">
-  <div class="hdr-row">
-    <span class="hdr-brand">Snitch WH</span>
-    <span class="hdr-date" id="dateLbl"></span>
-  </div>
-  <div class="hdr-title">Operations Tracker</div>
-</div>
-
-<div class="tabs">
-  <button class="tab-btn on" onclick="switchTab('att',this)">Attendance</button>
-  <button class="tab-btn" onclick="switchTab('prod',this)">Productivity</button>
-</div>
-
-<div id="att">
-  <div class="form-wrap">
-    <div class="frow">
-      <div class="field">
-        <label>Facility</label>
-        <select id="fac" onchange="reset()">
-          <!-- ═══════════════════════════════════════════
-               EASY CONFIG: Add / remove facilities here
-               Must match exactly what's in Google Sheets
-               ═══════════════════════════════════════════ -->
-          <option value="">Select</option>
-          <option>WH1</option>
-          <option>WH2</option>
-          <option>NORTH</option>
-          <!-- Add new facility: <option>WH3</option> -->
-        </select>
-      </div>
-      <div class="field">
-        <label>Department</label>
-        <select id="dept" onchange="reset()">
-          <!-- ═══════════════════════════════════════════
-               EASY CONFIG: Add / remove departments here
-               Must match exactly what's in Google Sheets
-               ═══════════════════════════════════════════ -->
-          <option value="">Select</option>
-          <option>B2C</option>
-          <option>B2B_Retail</option>
-          <option>Security</option>
-          <option>Packaging</option>
-          <option>Inventory</option>
-          <option>Helper</option> 
-          <option>B2C_Return</option> 
-           <option>Local_Logistic</option>
-           <option>Ops</option>
-           <option>Inward</option>
-           
-          <!-- Add new dept: <option>QC</option> -->
-        </select>
-      </div>
-    </div>
-    <div class="field full-field">
-      <label>Marked by</label>
-      <input type="text" id="mby" placeholder="Your name">
-    </div>
-    <button class="load-btn" id="loadBtn" onclick="loadEmployees()">
-      <div class="spinner" id="spinner"></div>
-      <span id="loadLabel">Load Team</span>
-    </button>
-    <p class="err-msg" id="errMsg"></p>
-  </div>
-
-  <div class="strip" id="strip" style="display:none"></div>
-  <div class="sep" id="sep" style="display:none"></div>
-  <div class="emp-list" id="list">
-    <div class="empty"><span class="empty-ico">👆</span><p>Select facility &amp; department<br>then tap <strong>Load Team</strong></p></div>
+<!-- ── TOPBAR ──────────────────────────────────────────────── -->
+<div class="topbar">
+  <div class="topbar-brand">Snitch · Attendance</div>
+  <div class="topbar-user" id="topbar-user" style="display:none">
+    <span id="topbar-name"></span>
+    <button class="logout-btn" onclick="logout()">Sign out</button>
   </div>
 </div>
 
-<div id="prod" style="display:none">
-  <div class="coming">
-    <span style="font-size:38px;display:block;margin-bottom:14px;opacity:.4">📦</span>
-    <p>Picker / Packer productivity<br>tracker — coming soon</p>
-  </div>
-</div>
-
-<div class="sub-bar" id="subBar">
-  <button class="sub-btn" id="subBtn" onclick="submitAtt()">
-    Submit Attendance <span class="sub-cnt" id="subCnt">0</span>
-  </button>
-</div>
+<!-- ── TOAST ───────────────────────────────────────────────── -->
 <div class="toast" id="toast"></div>
 
-<script>
-/* ════════════════════════════════════════════════════
-   EASY CONFIG — update these two URLs only
-   ════════════════════════════════════════════════════ */
-const CFG = {
-  // n8n webhook to GET employees from Google Sheets
-  // e.g. https://your-n8n.app.n8n.cloud/webhook/get-employees
-  GET_EMPLOYEES_URL: 'https://n8n.snitch-workflow.com/webhook/get-employees',
-
-  // n8n webhook to POST attendance submissions → Snowflake
-  // e.g. https://your-n8n.app.n8n.cloud/webhook/attendance-submit
-  SUBMIT_ATTENDANCE_URL: 'https://n8n.snitch-workflow.com/webhook/attendance-submit',
-};
-/* ════════════════════════════════════════════════════ */
-
-const ST = [
-  {v:'Present',        l:'Present',    cl:'pP'},
-  {v:'Absent',         l:'Absent',     cl:'pA'},
-  {v:'Week Off',       l:'Week Off',   cl:'pW'},
-  {v:'Sick Leave',     l:'Sick',       cl:'pS'},
-  {v:'Planned Leave',  l:'Planned',    cl:'pPL'},
-  {v:'Unplanned Leave',l:'Unplanned',  cl:'pUL'},
-];
-const CC = {'Present':'cp','Absent':'ca','Week Off':'cw','Sick Leave':'cl','Planned Leave':'cl','Unplanned Leave':'cl'};
-
-let emps = [];
-
-// Date display
-(()=>{
-  const ist = new Date(Date.now() + 5.5*3600000);
-  document.getElementById('dateLbl').textContent = ist.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
-})();
-
-function getIST(){ return new Date(Date.now()+5.5*3600000).toISOString().slice(0,10) }
-function ini(n){ return n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() }
-function toast(m,dur=2600){ const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),dur) }
-function showErr(m){ const e=document.getElementById('errMsg');e.textContent=m;e.style.display=m?'block':'none' }
-function setLoading(on){
-  document.getElementById('spinner').style.display = on?'inline-block':'none';
-  document.getElementById('loadLabel').textContent = on?'Loading…':'Load Team';
-  document.getElementById('loadBtn').disabled = on;
-}
-
-function reset(){
-  emps=[];
-  document.getElementById('list').innerHTML='<div class="empty"><span class="empty-ico">👆</span><p>Select facility &amp; department<br>then tap <strong>Load Team</strong></p></div>';
-  document.getElementById('strip').style.display='none';
-  document.getElementById('sep').style.display='none';
-  document.getElementById('subBar').style.display='none';
-  showErr('');
-}
-
-async function loadEmployees(){
-  const fac  = document.getElementById('fac').value;
-  const dept = document.getElementById('dept').value;
-  if(!fac||!dept){ toast('Select facility and department first'); return }
-
-  setLoading(true);
-  showErr('');
-
-  try{
-    const url = `${CFG.GET_EMPLOYEES_URL}?facility=${encodeURIComponent(fac)}&department=${encodeURIComponent(dept)}`;
-    const res = await fetch(url);
-    if(!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const list = data.employees || [];
-
-    if(!list.length){
-      document.getElementById('list').innerHTML=`<div class="empty"><p>No active employees found for<br><strong>${fac} – ${dept}</strong><br><span style="font-size:12px;opacity:.7">Check Google Sheets — facility/dept names must match exactly</span></p></div>`;
-      setLoading(false); return;
-    }
-
-    emps = list.map(e=>({...e, st:'Present'}));
-    render();
-    document.getElementById('strip').style.display='flex';
-    document.getElementById('sep').style.display='block';
-    document.getElementById('subBar').style.display='block';
-
-  } catch(e){
-    showErr('Could not load employees — check n8n webhook URL');
-    console.error(e);
-  }
-  setLoading(false);
-}
-
-function render(){
-  document.getElementById('list').innerHTML = emps.map((e,i)=>`
-    <div class="ec ${CC[e.st]||''}" id="ec${i}" style="animation-delay:${i*.05}s">
-      <div class="ec-top">
-        <div class="av">${ini(e.employee_name)}</div>
-        <div>
-          <div class="en">${e.employee_name}</div>
-          <div class="ec-code">${e.employee_code}</div>
+<!-- ════════════════════════════════════════════════════════════
+     LOGIN SCREEN
+═══════════════════════════════════════════════════════════════ -->
+<div class="screen active" id="login-screen">
+  <div class="login-card">
+    <div class="login-header">
+      <h1>Mark Attendance</h1>
+      <p>Warehouse Operations · Snitch</p>
+    </div>
+    <div class="login-body">
+      <div class="field">
+        <label>Your Name</label>
+        <select id="login-name">
+          <option value="">Select your name…</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>PIN</label>
+        <div class="pin-wrapper">
+          <input type="password" id="login-pin" maxlength="6" placeholder="······" inputmode="numeric" autocomplete="off" />
+          <button class="pin-toggle" onclick="togglePin()" type="button">👁</button>
         </div>
       </div>
-      <div class="pills">
-        ${ST.map((s,si)=>`<button class="pill ${e.st===s.v?s.cl:''}" onclick="pick(${i},${si})">${s.l}</button>`).join('')}
+      <button class="login-btn" id="login-btn" onclick="doLogin()">Sign In</button>
+      <div class="login-error" id="login-error"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     APP SCREEN
+═══════════════════════════════════════════════════════════════ -->
+<div class="screen" id="app-screen">
+
+  <!-- Session banner -->
+  <div class="session-banner" id="session-banner">
+    <span>Logged in as</span>
+    <strong id="sb-name"></strong>
+    <span class="session-pill" id="sb-facility"></span>
+    <span class="session-pill" id="sb-department"></span>
+  </div>
+
+  <div class="app-content">
+
+    <!-- Date picker -->
+    <div class="date-strip">
+      <div>
+        <div class="date-label">Attendance Date</div>
+        <div class="date-value" id="date-display"></div>
       </div>
-    </div>`).join('');
-  updateStrip();
-}
+      <div class="date-input-wrap">
+        <input type="date" id="att-date" />
+      </div>
+    </div>
 
-function pick(ei, si){
-  const s = ST[si];
-  emps[ei].st = s.v;
-  const card = document.getElementById(`ec${ei}`);
-  card.className = `ec ${CC[s.v]||''}`;
-  card.querySelectorAll('.pill').forEach((p,pi)=>{ p.className='pill '+(pi===si?s.cl:'') });
-  updateStrip();
-}
+    <!-- Load employees -->
+    <button class="load-btn" id="load-btn" onclick="loadEmployees()">
+      <div class="spinner"></div>
+      <span class="btn-text">↓ Load Employees</span>
+    </button>
 
-function updateStrip(){
-  const c={P:0,A:0,W:0,L:0};
-  emps.forEach(e=>{
-    if(e.st==='Present')c.P++;
-    else if(e.st==='Absent')c.A++;
-    else if(e.st==='Week Off')c.W++;
-    else c.L++;
-  });
-  document.getElementById('strip').innerHTML=[
-    `<div class="chip" style="background:#D4EFDF;color:#0A5C38;border-color:#1A8A55">${c.P} Present</div>`,
-    `<div class="chip" style="background:#F5DADA;color:#8B1A1A;border-color:#C13030">${c.A} Absent</div>`,
-    `<div class="chip" style="background:#D6E8F7;color:#1A4F8B;border-color:#2B6CB8">${c.W} Week Off</div>`,
-    `<div class="chip" style="background:#FDE8C8;color:#7A3B00;border-color:#B05A10">${c.L} On Leave</div>`,
-  ].join('');
-  document.getElementById('subCnt').textContent = emps.length;
-}
+    <!-- Summary bar -->
+    <div class="summary-bar" id="summary-bar"></div>
 
-async function submitAtt(){
-  const fac  = document.getElementById('fac').value;
-  const dept = document.getElementById('dept').value;
-  const mby  = document.getElementById('mby').value.trim() || 'Unknown';
-  const btn  = document.getElementById('subBtn');
-  if(!emps.length){ toast('No employees loaded'); return }
+    <!-- Employee list header -->
+    <div class="emp-list-header hidden" id="emp-list-header">
+      <div class="emp-count" id="emp-count"></div>
+      <div class="quick-actions">
+        <button class="quick-btn" onclick="markAll('Present')">All Present</button>
+        <button class="quick-btn" onclick="markAll('Week Off')">All Week Off</button>
+      </div>
+    </div>
 
-  btn.disabled=true; btn.innerHTML='Submitting…';
+    <!-- Employee list -->
+    <div class="emp-list" id="emp-list"></div>
+    <div class="empty-state" id="empty-state">No employees found for this facility / department.</div>
 
-  const payload = {
-    attendance_date: getIST(),
-    facility: fac, department: dept,
-    marked_by: mby,
-    marked_at: new Date(Date.now()+5.5*3600000).toISOString().slice(0,19),
-    employees: emps.map(e=>({
-      employee_id: e.id,
-      employee_code: e.employee_code,
-      employee_name: e.employee_name,
-      attendance_status: e.st,
-      remarks: ''
-    }))
-  };
+    <!-- Submit -->
+    <div class="submit-section hidden" id="submit-section">
+      <input class="marked-by-field" id="marked-by" readonly />
+      <button class="submit-btn" id="submit-btn" onclick="submitAttendance()">
+        <div class="spinner"></div>
+        <span class="btn-text">Submit Attendance</span>
+      </button>
+    </div>
 
-  try{
-    const res = await fetch(CFG.SUBMIT_ATTENDANCE_URL,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(payload)
-    });
-    if(res.ok){
-      toast('✓ Submitted successfully');
-      setTimeout(()=>{
-        document.getElementById('fac').value='';
-        document.getElementById('dept').value='';
-        document.getElementById('mby').value='';
-        reset();
-      },1700);
-    } else {
-      toast('Submission failed — check webhook');
-    }
-  } catch(e){
-    toast('Could not reach server');
-    console.error(e);
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   CONFIG — update these URLs once n8n workflows are live
+═══════════════════════════════════════════════════════════════ */
+const CFG = {
+  AUTH_URL:          'YOUR_N8N_AUTH_WEBHOOK_URL',        // POST /auth-login
+  GET_EMPLOYEES_URL: 'YOUR_N8N_GET_EMPLOYEES_WEBHOOK_URL', // GET /get-employees
+  SUBMIT_URL:        'YOUR_N8N_SUBMIT_ATTENDANCE_WEBHOOK_URL', // POST /attendance-submit
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════════════════ */
+let session = null; // { supervisor_name, facility, department }
+let employees = []; // loaded employee list
+
+/* ═══════════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════════ */
+(function init() {
+  // Set today's date
+  const today = toISTDateString(new Date());
+  document.getElementById('att-date').value = today;
+  updateDateDisplay(today);
+  document.getElementById('att-date').addEventListener('change', e => updateDateDisplay(e.target.value));
+
+  // Restore session from sessionStorage
+  const saved = sessionStorage.getItem('snitch_session');
+  if (saved) {
+    try {
+      session = JSON.parse(saved);
+      enterApp();
+      return;
+    } catch(e) {}
   }
-  btn.disabled=false;
-  btn.innerHTML=`Submit Attendance <span class="sub-cnt">${emps.length}</span>`;
+
+  // Load supervisor names for dropdown (hardcoded list — OR fetch from n8n if preferred)
+  // We load from n8n auth endpoint with a GET to fetch supervisor names
+  loadSupervisorList();
+})();
+
+/* ── Date helpers ─────────────────────────────────────────── */
+function toISTDateString(d) {
+  const ist = new Date(d.getTime() + 5.5 * 3600000);
+  return ist.toISOString().slice(0, 10);
+}
+function toISTTimestamp() {
+  const now = new Date();
+  const ist = new Date(now.getTime() + 5.5 * 3600000);
+  return ist.toISOString().slice(0, 19);
+}
+function updateDateDisplay(val) {
+  if (!val) return;
+  const [y, m, d] = val.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('date-display').textContent = `${d} ${months[+m-1]} ${y}`;
+}
+function todayIST() {
+  return toISTDateString(new Date());
 }
 
-function switchTab(name,el){
-  document.getElementById('att').style.display  = name==='att'?'block':'none';
-  document.getElementById('prod').style.display = name==='prod'?'block':'none';
-  document.querySelectorAll('.tab-btn').forEach(t=>t.classList.remove('on'));
-  el.classList.add('on');
-  document.getElementById('subBar').style.display = (name==='att'&&emps.length)?'block':'none';
+/* ═══════════════════════════════════════════════════════════════
+   SUPERVISOR LIST  
+   Calls n8n GET /auth-login?list=true to fetch supervisor names
+   Falls back to empty — supervisor just types name
+═══════════════════════════════════════════════════════════════ */
+async function loadSupervisorList() {
+  const sel = document.getElementById('login-name');
+  try {
+    const res = await fetch(CFG.AUTH_URL + '?list=true');
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    if (data.supervisors && Array.isArray(data.supervisors)) {
+      data.supervisors.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        sel.appendChild(opt);
+      });
+    }
+  } catch(e) {
+    // Fallback: leave as-is, supervisor selects from whatever loaded
+    // If network fails, just show empty dropdown — user can't proceed
+    // (this is intentional — no anonymous access)
+  }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   LOGIN
+═══════════════════════════════════════════════════════════════ */
+function togglePin() {
+  const inp = document.getElementById('login-pin');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+async function doLogin() {
+  const name = document.getElementById('login-name').value.trim();
+  const pin  = document.getElementById('login-pin').value.trim();
+  const err  = document.getElementById('login-error');
+  const btn  = document.getElementById('login-btn');
+
+  err.style.display = 'none';
+
+  if (!name) { showLoginError('Please select your name.'); return; }
+  if (!pin)  { showLoginError('Please enter your PIN.'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Verifying…';
+
+  try {
+    const res = await fetch(CFG.AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ supervisor_name: name, pin: pin })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      showLoginError(data.message || 'Invalid credentials. Please try again.');
+      return;
+    }
+
+    // Store session
+    session = {
+      supervisor_name: data.supervisor_name,
+      facility:        data.facility,
+      department:      data.department,
+    };
+    sessionStorage.setItem('snitch_session', JSON.stringify(session));
+    enterApp();
+
+  } catch(e) {
+    showLoginError('Could not reach server. Check your connection.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+  }
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+/* ── Enter app after login ────────────────────────────────── */
+function enterApp() {
+  // Switch screens
+  document.getElementById('login-screen').classList.remove('active');
+  document.getElementById('app-screen').classList.add('active');
+
+  // Topbar
+  document.getElementById('topbar-user').style.display = 'flex';
+  document.getElementById('topbar-name').textContent = session.supervisor_name;
+
+  // Session banner
+  document.getElementById('sb-name').textContent = session.supervisor_name;
+  document.getElementById('sb-facility').textContent = session.facility;
+  document.getElementById('sb-department').textContent = session.department;
+
+  // Marked-by field
+  document.getElementById('marked-by').value = session.supervisor_name;
+}
+
+/* ── Logout ───────────────────────────────────────────────── */
+function logout() {
+  sessionStorage.removeItem('snitch_session');
+  session = null;
+  employees = [];
+  document.getElementById('emp-list').innerHTML = '';
+  document.getElementById('emp-list-header').classList.add('hidden');
+  document.getElementById('submit-section').classList.add('hidden');
+  document.getElementById('summary-bar').classList.remove('visible');
+  document.getElementById('empty-state').classList.remove('visible');
+  document.getElementById('topbar-user').style.display = 'none';
+  document.getElementById('login-pin').value = '';
+  document.getElementById('login-error').style.display = 'none';
+  document.getElementById('app-screen').classList.remove('active');
+  document.getElementById('login-screen').classList.add('active');
+  // Reload supervisor list
+  document.getElementById('login-name').innerHTML = '<option value="">Select your name…</option>';
+  loadSupervisorList();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LOAD EMPLOYEES
+═══════════════════════════════════════════════════════════════ */
+async function loadEmployees() {
+  const btn = document.getElementById('load-btn');
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  try {
+    const url = `${CFG.GET_EMPLOYEES_URL}?facility=${encodeURIComponent(session.facility)}&department=${encodeURIComponent(session.department)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Server error');
+    const data = await res.json();
+
+    employees = data.employees || [];
+    renderEmployeeList();
+
+  } catch(e) {
+    showToast('Failed to load employees. Try again.', 'error');
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RENDER EMPLOYEE LIST
+═══════════════════════════════════════════════════════════════ */
+function renderEmployeeList() {
+  const list   = document.getElementById('emp-list');
+  const header = document.getElementById('emp-list-header');
+  const submit = document.getElementById('submit-section');
+  const empty  = document.getElementById('empty-state');
+
+  list.innerHTML = '';
+
+  if (employees.length === 0) {
+    empty.classList.add('visible');
+    header.classList.add('hidden');
+    submit.classList.add('hidden');
+    return;
+  }
+
+  empty.classList.remove('visible');
+  header.classList.remove('hidden');
+  submit.classList.remove('hidden');
+  document.getElementById('emp-count').textContent = `${employees.length} employee${employees.length !== 1 ? 's' : ''}`;
+
+  employees.forEach((emp, idx) => {
+    const row = document.createElement('div');
+    row.className = 'emp-row';
+    row.dataset.idx = idx;
+
+    const statuses = ['Present','Absent','Week Off','Sick Leave','Planned Leave','Unplanned Leave'];
+    const options = statuses.map(s => `<option value="${s}"${s === 'Present' ? ' selected' : ''}>${s}</option>`).join('');
+
+    row.innerHTML = `
+      <div class="emp-row-top">
+        <div class="emp-info">
+          <div class="emp-name">${escHtml(emp.employee_name)}</div>
+          <div class="emp-code">${escHtml(emp.employee_code)}</div>
+        </div>
+        <select class="status-select present" onchange="onStatusChange(this, ${idx})" data-idx="${idx}">
+          ${options}
+        </select>
+      </div>
+      <textarea class="remarks-field" placeholder="Remarks (optional)…" rows="1" data-idx="${idx}"></textarea>
+    `;
+
+    list.appendChild(row);
+  });
+
+  updateSummary();
+}
+
+/* ── Status change handler ────────────────────────────────── */
+function onStatusChange(sel, idx) {
+  const val = sel.value;
+  // Update styling class
+  const cls = {
+    'Present': 'present',
+    'Absent': 'absent',
+    'Week Off': 'week-off',
+    'Sick Leave': 'sick-leave',
+    'Planned Leave': 'planned-leave',
+    'Unplanned Leave': 'unplanned-leave',
+  }[val] || '';
+  sel.className = `status-select ${cls}`;
+
+  // Show remarks field for non-Present statuses
+  const remarksField = document.querySelector(`.remarks-field[data-idx="${idx}"]`);
+  if (remarksField) {
+    if (val !== 'Present' && val !== 'Week Off') {
+      remarksField.classList.add('visible');
+    } else {
+      remarksField.classList.remove('visible');
+      remarksField.value = '';
+    }
+  }
+
+  updateSummary();
+}
+
+/* ── Mark all ─────────────────────────────────────────────── */
+function markAll(status) {
+  document.querySelectorAll('.status-select').forEach(sel => {
+    sel.value = status;
+    onStatusChange(sel, parseInt(sel.dataset.idx));
+  });
+}
+
+/* ── Summary bar ──────────────────────────────────────────── */
+function updateSummary() {
+  const bar = document.getElementById('summary-bar');
+  if (employees.length === 0) { bar.classList.remove('visible'); return; }
+
+  const counts = {};
+  document.querySelectorAll('.status-select').forEach(sel => {
+    counts[sel.value] = (counts[sel.value] || 0) + 1;
+  });
+
+  const labels = { 'Present':'present', 'Absent':'absent' };
+  let html = '';
+  for (const [status, count] of Object.entries(counts)) {
+    const cls = labels[status] || 'other';
+    html += `<div class="sum-chip ${cls}">${status}: ${count}</div>`;
+  }
+  bar.innerHTML = html;
+  bar.classList.add('visible');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SUBMIT ATTENDANCE
+═══════════════════════════════════════════════════════════════ */
+async function submitAttendance() {
+  const btn = document.getElementById('submit-btn');
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  try {
+    // Build payload
+    const attDate  = document.getElementById('att-date').value;
+    const markedAt = toISTTimestamp();
+
+    const empPayload = employees.map((emp, idx) => {
+      const statusSel = document.querySelector(`.status-select[data-idx="${idx}"]`);
+      const remarksTa = document.querySelector(`.remarks-field[data-idx="${idx}"]`);
+      return {
+        employee_id:       emp.id,
+        employee_code:     emp.employee_code,
+        employee_name:     emp.employee_name,
+        attendance_status: statusSel ? statusSel.value : 'Present',
+        remarks:           remarksTa ? remarksTa.value.trim() : '',
+      };
+    });
+
+    const payload = {
+      attendance_date: attDate,
+      facility:        session.facility,
+      department:      session.department,
+      marked_by:       session.supervisor_name,
+      marked_at:       markedAt,
+      employees:       empPayload,
+    };
+
+    const res = await fetch(CFG.SUBMIT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || 'Submit failed');
+    }
+
+    showToast(`✓ Attendance submitted for ${empPayload.length} employees`, 'success');
+
+    // Lock submit button to prevent double-submit
+    btn.textContent = '✓ Submitted';
+    btn.style.background = 'var(--success)';
+    btn.disabled = true;
+
+  } catch(e) {
+    showToast(e.message || 'Submission failed. Try again.', 'error');
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════════════════════ */
+let toastTimer;
+function showToast(msg, type = 'info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   UTILS
+═══════════════════════════════════════════════════════════════ */
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── PIN Enter key support ────────────────────────────────── */
+document.getElementById('login-pin').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
 </script>
 </body>
 </html>
