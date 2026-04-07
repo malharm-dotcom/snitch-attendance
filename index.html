@@ -561,9 +561,10 @@
    CONFIG — update these URLs once n8n workflows are live
 ═══════════════════════════════════════════════════════════════ */
 const CFG = {
-  AUTH_URL:          'https://n8n.snitch-workflow.com/webhook/auth-login',        // POST /auth-login
+  AUTH_LOGIN_URL:          'https://n8n.snitch-workflow.com/webhook/auth-login',        // POST /auth-login
   GET_EMPLOYEES_URL: 'https://n8n.snitch-workflow.com/webhook/get-employees', // GET /get-employees
   SUBMIT_URL:        'https://n8n.snitch-workflow.com/webhook/attendance-submit', // POST /attendance-submit
+  AUTH_LIST_URL:  'https://n8n.snitch-workflow.com/webhook/auth-login',
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -625,7 +626,7 @@ function todayIST() {
 async function loadSupervisorList() {
   const sel = document.getElementById('login-name');
   try {
-    const res = await fetch(CFG.AUTH_URL + '?list=true');
+    const res = await fetch(CFG.'https://n8n.snitch-workflow.com/webhook/auth-login' + '?list=true');
     if (!res.ok) throw new Error();
     const data = await res.json();
     if (data.supervisors && Array.isArray(data.supervisors)) {
@@ -666,7 +667,7 @@ async function doLogin() {
   btn.textContent = 'Verifying…';
 
   try {
-    const res = await fetch(CFG.AUTH_URL, {
+    const res = await fetch(CFG.'https://n8n.snitch-workflow.com/webhook/auth-login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ supervisor_name: name, pin: pin })
