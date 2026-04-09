@@ -609,6 +609,9 @@ function enterApp() {
   document.getElementById('sb-facility').textContent = session.facility;
   document.getElementById('sb-department').textContent = session.department;
   document.getElementById('marked-by').value = session.supervisor_name;
+   if (session._approvedDate) {
+    lockDateToApproved(session._approvedDate);
+  }
 }
 
 function logout() {
@@ -678,17 +681,36 @@ async function loadEmployees() {
 
 /* ══ APPLY SUBMISSION STATE ══════════════════════════════ */
 function applySubmissionState(data) {
-  if (!data || !data.submitted) { lockInputs(false); showSubmitButton(true); return; }
+  if (!data || !data.submitted) { lockInputs(false); showSubmitButton(true); unlockDate(); return; }
   const rs = data.request_status;
   if (rs === 'approved') {
-    lockInputs(false); showSubmitButton(true); showSubmissionBanner('approved', data);
+    lockInputs(false);
+    showSubmitButton(true);
+    showSubmissionBanner('approved', data);
+    lockDateToApproved(data.attendance_date || document.getElementById('att-date').value);
   } else if (rs === 'pending') {
     lockInputs(true); showSubmitButton(false); showSubmissionBanner('pending-approval', data);
   } else {
     lockInputs(true); showSubmitButton(false); showSubmissionBanner('submitted', data);
   }
 }
+  function lockDateToApproved(approvedDate) {
+  const datePicker = document.getElementById('att-date');
+  datePicker.value    = approvedDate;
+  datePicker.disabled = true;
+  updateDateDisplay(approvedDate);
+  session._approvedDate = approvedDate;
+  sessionStorage.setItem('snitch_session', JSON.stringify(session));
+}
 
+function unlockDate() {
+  const datePicker    = document.getElementById('att-date');
+  datePicker.disabled = false;
+  if (session && session._approvedDate) {
+    delete session._approvedDate;
+    sessionStorage.setItem('snitch_session', JSON.stringify(session));
+  }
+}
 function lockInputs(lock) {
   inputsLocked = lock;
   document.querySelectorAll('.status-select').forEach(s => s.disabled = lock);
@@ -741,6 +763,7 @@ function hideSubmissionBanner() {
 
 function resetSubmissionUI() {
   submissionState = null; inputsLocked = false;
+  unlockDate();
   hideSubmissionBanner();
   const sec = document.getElementById('submit-section');
   const btn = document.getElementById('submit-btn');
@@ -898,6 +921,7 @@ async function submitAttendance() {
     showToast(e.message || 'Submission failed. Try again.', 'error');
     btn.classList.remove('loading'); btn.disabled = false;
   }
+  unlockDate(); // approval consumed after resubmit
 }
 
 /* ══ HISTORY TAB ══════════════════════════════════════════ */
