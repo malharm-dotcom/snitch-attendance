@@ -916,12 +916,12 @@ async function submitAttendance() {
     btn.disabled = true;
     lockInputs(true);
     showSubmissionBanner('submitted', { marked_by: session.supervisor_name, marked_at: payload.marked_at, request_status: null });
-    document.getElementById('submit-section').classList.remove('hidden');
+  document.getElementById('submit-section').classList.remove('hidden');
+    unlockDate(); // ← inside try — only runs on success
   } catch(e) {
     showToast(e.message || 'Submission failed. Try again.', 'error');
     btn.classList.remove('loading'); btn.disabled = false;
   }
-  unlockDate(); // approval consumed after resubmit
 }
 
 /* ══ HISTORY TAB ══════════════════════════════════════════ */
