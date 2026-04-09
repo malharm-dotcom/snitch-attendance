@@ -93,6 +93,15 @@ body{font-family:var(--display);background:var(--bg);color:var(--text);min-heigh
 .session-banner strong{color:var(--text);font-weight:600}
 .s-pill{background:var(--accent);border-radius:20px;padding:2px 10px;font-size:11px;color:var(--accent-text);font-weight:600}
 
+/* ── APP TABS ── */
+.app-tabs{display:flex;gap:0;background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px}
+.app-tab-btn{background:none;border:none;border-bottom:2.5px solid transparent;padding:12px 18px;font-size:12px;font-family:var(--mono);font-weight:600;color:var(--text-3);cursor:pointer;transition:all .15s;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:-1px}
+.app-tab-btn:hover{color:var(--text-2)}
+.app-tab-btn.active{color:var(--text);border-bottom-color:#1a1a1a}
+
+.app-panel{display:none}
+.app-panel.active{display:block}
+
 .app-content{padding:20px;max-width:700px;margin:0 auto;width:100%}
 
 .date-strip{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;margin-bottom:14px}
@@ -201,6 +210,51 @@ input[type="date"]:focus{border-color:var(--accent-d)}
 .submit-btn.loading .spinner{display:block}
 .submit-btn.loading .btn-text{display:none}
 
+/* ── HISTORY TAB ── */
+.history-controls{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.history-date-wrap{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;flex:1;min-width:220px}
+.history-date-label{font-size:10px;font-family:var(--mono);color:var(--text-2);text-transform:uppercase;letter-spacing:0.1em;white-space:nowrap}
+.history-load-btn{background:#1a1a1a;color:#fff;border:none;border-radius:var(--r);padding:11px 18px;font-size:13px;font-family:var(--display);font-weight:700;cursor:pointer;transition:background .15s;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.history-load-btn:hover{background:#333}
+.history-load-btn:disabled{opacity:0.4;cursor:not-allowed}
+.history-load-btn .spinner{width:13px;height:13px;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:none}
+.history-load-btn.loading .spinner{display:block}
+.history-load-btn.loading .hist-btn-txt{display:none}
+
+.history-meta{font-size:11px;font-family:var(--mono);color:var(--text-3);margin-bottom:14px}
+
+/* Read-only history table */
+.hist-table-wrap{overflow-x:auto;border-radius:var(--r);border:1.5px solid var(--border);background:var(--surface);margin-bottom:20px}
+.hist-table{width:100%;border-collapse:collapse;font-size:12px}
+.hist-table th{background:var(--surface2);font-family:var(--mono);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-2);padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+.hist-table td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
+.hist-table tr:last-child td{border-bottom:none}
+.hist-table tr:hover td{background:var(--surface2)}
+.hist-emp-name{font-weight:600;font-size:13px}
+.hist-emp-code{font-size:10px;font-family:var(--mono);color:var(--text-3);margin-top:1px}
+.hist-status{display:inline-block;font-size:11px;font-family:var(--mono);font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap}
+.hist-status.present{background:rgba(31,158,94,0.1);color:var(--success);border:1px solid rgba(31,158,94,0.3)}
+.hist-status.absent{background:rgba(217,48,48,0.08);color:var(--danger);border:1px solid rgba(217,48,48,0.25)}
+.hist-status.week-off{background:var(--surface2);color:var(--text-2);border:1px solid var(--border2)}
+.hist-status.sick-leave{background:rgba(201,122,0,0.08);color:var(--warn);border:1px solid rgba(201,122,0,0.3)}
+.hist-status.planned-leave{background:rgba(30,100,220,0.07);color:#1e64dc;border:1px solid rgba(30,100,220,0.25)}
+.hist-status.unplanned-leave{background:rgba(150,50,200,0.07);color:#9632c8;border:1px solid rgba(150,50,200,0.25)}
+.hist-remarks{font-size:11px;color:var(--text-3);font-style:italic}
+.hist-marked-by{font-size:11px;font-family:var(--mono);color:var(--text-3)}
+
+.hist-summary{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.hist-info-banner{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.hist-info-banner .hi-icon{font-size:16px}
+.hist-info-banner .hi-text{font-size:11px;font-family:var(--mono);color:var(--text-2);line-height:1.5}
+.hist-info-banner .hi-text strong{color:var(--text)}
+
+.hist-empty{text-align:center;padding:52px 20px;color:var(--text-3);font-size:13px;font-family:var(--mono);line-height:1.7}
+.hist-empty-icon{font-size:28px;margin-bottom:10px}
+
+/* skeleton for history */
+.hist-skeleton{background:linear-gradient(90deg,var(--surface2) 25%,var(--border) 50%,var(--surface2) 75%);background-size:200% 100%;animation:shimmer 1.2s infinite;border-radius:var(--r);height:200px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
 /* ── TOAST ── */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#1a1a1a;border-radius:10px;padding:12px 20px;font-size:12px;font-family:var(--mono);color:#fff;z-index:999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;max-width:90vw;border:1px solid #333}
 .toast.show{transform:translateX(-50%) translateY(0)}
@@ -218,6 +272,8 @@ input[type="date"]:focus{border-color:var(--accent-d)}
   .status-select{min-width:100%}
   .sb-top{flex-direction:column}
   .sb-actions{width:100%}
+  .history-controls{flex-direction:column;align-items:stretch}
+  .history-date-wrap{min-width:unset}
 }
 </style>
 </head>
@@ -257,7 +313,7 @@ input[type="date"]:focus{border-color:var(--accent-d)}
 <div class="screen active" id="login-screen">
   <div class="login-split">
     <div class="login-brand">
-      <img class="brand-logo" src="data:image/png;base64,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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/2Q==" alt="Snitch" />
+      <img class="brand-logo" src="data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/wAARCAQABAADASIAAhEBAxEB/8QAGQABAQEBAQEAAAAAAAAAAAAAAAQDAgEI/8QAKhABAAIAAwgDAQADAQEAAAAAAAECAxESBBMyM1FSYXEhMZFBQoGhIiP/xAAWAQEBAQAAAAAAAAAAAAAAAAAAAQL/xAAWEQEBAQAAAAAAAAAAAAAAAAAAARH/2gAMAwEAAhEDEQA/APjIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAexEzOURm90X7ZByOtF+2TRftkHI60X7ZNF+2Qcj2YynKXgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAANdn5n+lCfZ+Z/pQJQAQABJi8y3ty6xeZb25GgAAAAAAAAAAHtazacogHjuuHa31DbDwor82+ZaCaxrgR/ZdxhUj/ABdgOdFO2Pw0U7Y/HQI4nCpP+Li2BH+MtgVJelq/cOVrLEwYn5r8eA1OPZiYnKXgoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADXZ+Z/pQjiZj6NVus/omLB5Tgj09EBxjfGHOSbVbrP6K9xeZb25AUAAAAAAAAB7WJmYiAe4dJvbKFNKxWMoKVitcodCAPLWrWM5kR6J740zwxkzm0z9zIuK5tWP7BFqz/YRgYtEcWmPqZa0xpj4t8hjceVmLRnE5vRHGLhxePKaYynKVjHaKZxqj7/osYACgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALKcEenrynBHp6MuMflylVY/LlKLAAUAAAAAAAAb7PXKNU/wBY1jVaIWRGURECUB5e0VrMyI5xbxSPKa0zac5ktabWzl4NAAAAAAOsO80nP+KqzFoiYRtdnvlbTP1IlUE/MAIkxK6bzDlvtNfq3+mA0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAspwR6evKcEenoy4x+XKVVj8uUosABQAAAAAAAGuzRneZ6QoZbNH/mZ8tRKMNptnMV6N0l5zvMhHIAoAAAAAAR8TmALKznWJeuMCc8OHYy4xozw5SrLfMTCMWAAoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACynBHp68pwR6ejLjH5cpVWPy5SiwAFAAAAAAAAU7Py/9tGeBy4aCPLfFZnwjn7WX4J9I5CAAoAAAAAAACjZ+D/bVls3BLUQRLUQQAFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWU4I9PXlOCPT0ZcY/LlKqx+XKUWAAoAAAAAAACnA5cNGeBy4aCPL8E+kcrL8E+kchAAUAAAAAAABRs3BLVls3BLUSiJaiCAAoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACynBHp68pwR6ejLjH5cpVWPy5SiwAFAAAAAAAAU4HLhozwOXDQR5fgn0jlZfgn0jkIACgAAAAAAAKNm4Jastm4JaiURLUQQAFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2karRAPaUtefj66t64NY+/l3WIrGUPRNc6KdsfjycOk/4uwGNsDtn9YLZRz9hHgAoADrCiJxIiWmNhf5Vj/TjB5lVQiIbY2F92r+MRQAHeFTXbLPJpuI7v+Odm459KBE98KK1mdWbJVjcuUooAAADXDwtdc88nW4ju/492fgaiJ8TC0Vz1ZslO0cuUwoAA1w8KLVi2rJkpwOVAVzuI7v+G4ju/wCNgTWO4ju/4biO7/jYDWO4ju/4biO7/jYDWO4ju/4yxK6bac81abH5sgzAFAAHVKWv9Q6wsObznP0oiIiMoE1nXBiOKc3e7p2w6Ac7unbDi2DWfr4agJb4dq/cfHVwrxOXb0kFAAHtI1WiOrx1hcyvsGu4ju/4biO7/jYE1HaMrTHSXjrE5lvcuRRphYeuJnPJmo2bhn2DzcR3f8c4mFprq1ZqGePypETACgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADXZ4/8AbJpgTliewUvLzprMvSYzjKRlJN7TOeqXVcW8f3P29xMKY+a/MMhpVTEraOk9E0/bwAAAAB3g8yqpLg8yqoSjHGw/8qx7hsAiG+Nh/wCVf9wwFa7Nxz6UJ9m459KBK4xuXKVVjcuUoQAFAAUbPwNWWz8DURntHLlMp2jlymCAAo2w8WK0iJhiAo39ekm/r0lOCYsic4iXrynBHp6I4xLxTLOPtzv69Jc7V91YiqN/XpLHFtFrzMOQUAAe1ibWiIeNtmr92BtWIiIiHo8mcozkZLWisZzLG2PP+MR/tniWm9s3IuNox7Z/MQ0piVt4lKBirHnLDlK0tiasPTP2zFAAHWFzK+3LrC5lfYKwBlJicy3uXLu9Z12+J++jnTbpP4NPFGzcM+2Gm3Sfxvs8TFZzjL5Eas8flS0Z4/KkEwAoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9icpzh4Arw7xeuf9/rpHW01nOJUYeLFvifiRGji+HW3iXYIkvSaT8/rlZaImMphLiV0Wy/n8FcgCgAO8HmVVJcHmVVCUHluGfTPCxM//ADb7BqxxsL/KsfP9hsAn2bjn0ocxSIvqh0DjG5cpVWNy5ShAAUABRs/A1ZbPwNRGe0cuUynaOXKYIACgAAALKcEenrynBHp6MsNq+6sW21fdWI1AAAABTs8f/NMpwOVAlaM9onLD9y0ZbTwR7BOAKAAAAAAOsLmV9uXWFzK+wVgDIAAAAzx+VLRnj8qRUwAoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADvCrFr5SDga3wZr8x8wyBph4s1+J+YUVmJjOPpGo2eJis5/QlastpjOkT0lqz2jlgmAFAAd4PMqqS4PMqqEry/BPpH/Vl+CfSOQijBxM402+2qJvg4uf/m32DYARxjcuUqrG5cpRYACgAKNn4GrLZ+BqIz2jlymU7Ry5TBAAUAAABZTgj09eU4I9PRlhtX3Vi22r7qxGoAAAAKNmn/xl0lO0wLab5fyQUucWuqkw6BlEN8XCznVX76MZiYnKYyGngO6YVrfzKPIOYiZ+ninRFKTl95faYAAB1hcyvty6wuZX2CsAZS3tbXb5n7ea7d0mJzLe5cjTrXbults8zNZznP5TqNm4Z9iNWePypaM8flSCYAUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAd4PMhw6w+ZX2Ct5Naz9xEvQZcxh0j/GHQAMNpt9VaYmJFPMppmZnORY8AFAAd4PMqqS4PMqqEry/BPpHKy/BPpHIQAFb4OJn/AObT89WyJvhYuf8A5t+iO8blylVY3LlKEABQAFGz8DVls/A1EZ7Ry5TKdo5cpggAKAAAAspwR6evKcEenoyw2r7qxbbT91YjUAAAAAAU4N4tGU/cNEcTMTnDfDxYt8W+JEamUdAEeRER/IegDnE5dvSRRjYlYrNY+ZlOLAAUdYXMr7cusLmV9grAGUmJzLe5cusTmW9y5GhRs3DPtOo2bhn2Fas8flS0Z4/KkRMAKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA6re0fVpdRjXjpLMBrv79KubYt5/uXpwAAAAAAAR8PdVu6f14A91W7p/XgAAAAA7nEmaaZ+XAAAAAA9iZj6mYNVu6f14A9mZn7mZeAAAAAAAD3Vbun9NVu6f14A9mZn7mZeAAAAAAAAADqt71+pd7+/SGQDXf36Q5tiXt92cAAAAAAAPdVu6f01W7p/XgAAA9iZj6mYeAPdVu6f0mZn7mZeAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/2Q==" alt="Snitch" />
       <div class="brand-divider"></div>
       <div class="brand-tagline">Warehouse Operations</div>
       <div class="brand-sub">Attendance System</div>
@@ -298,89 +354,126 @@ input[type="date"]:focus{border-color:var(--accent-d)}
     <span class="s-pill" id="sb-department"></span>
   </div>
 
-  <div class="app-content">
-
-    <div class="date-strip">
-      <div>
-        <div class="date-label">Attendance Date</div>
-        <div class="date-value" id="date-display"></div>
-      </div>
-      <input type="date" id="att-date" />
-    </div>
-
-    <button class="load-btn" id="load-btn" onclick="loadEmployees()">
-      <div class="spinner"></div>
-      <span class="btn-text">↓ Load Employees</span>
-    </button>
-
-    <!-- SUBMISSION STATUS BANNER -->
-    <div class="submission-banner" id="submission-banner">
-      <div class="sb-top">
-        <div class="sb-icon-title">
-          <div class="sb-icon" id="sb-banner-icon"></div>
-          <div>
-            <div class="sb-title" id="sb-banner-title"></div>
-            <div class="sb-meta" id="sb-banner-meta"></div>
-          </div>
-        </div>
-        <div class="sb-actions" id="sb-banner-actions"></div>
-      </div>
-    </div>
-
-    <div class="summary-bar" id="summary-bar"></div>
-
-    <!-- SEARCH — hidden until employees loaded -->
-    <div class="search-wrap hidden" id="search-wrap">
-      <input type="text" id="emp-search" placeholder="Search by name or employee code…" oninput="filterEmployees(this.value)" />
-    </div>
-
-    <div class="emp-list-header hidden" id="emp-list-header">
-      <div class="emp-count" id="emp-count"></div>
-      <div class="quick-actions">
-        <button class="quick-btn" id="qa-present" onclick="markAll('Present')">All Present</button>
-        <button class="quick-btn" id="qa-weekoff" onclick="markAll('Week Off')">All Week Off</button>
-      </div>
-    </div>
-
-    <div class="emp-list" id="emp-list"></div>
-    <div class="empty-state" id="empty-state">No employees found for this facility / department.</div>
-
-    <div class="submit-section hidden" id="submit-section">
-      <input class="marked-by-field" id="marked-by" readonly />
-      <button class="submit-btn" id="submit-btn" onclick="submitAttendance()">
-        <div class="spinner"></div>
-        <span class="btn-text">Submit Attendance</span>
-      </button>
-    </div>
-
+  <!-- APP-LEVEL TABS -->
+  <div class="app-tabs">
+    <button class="app-tab-btn active" id="apptab-mark" onclick="switchAppTab('mark')">Mark Attendance</button>
+    <button class="app-tab-btn" id="apptab-history" onclick="switchAppTab('history')">History</button>
   </div>
+
+  <!-- PANEL: MARK ATTENDANCE -->
+  <div class="app-panel active" id="panel-mark">
+    <div class="app-content">
+
+      <div class="date-strip">
+        <div>
+          <div class="date-label">Attendance Date</div>
+          <div class="date-value" id="date-display"></div>
+        </div>
+        <input type="date" id="att-date" />
+      </div>
+
+      <button class="load-btn" id="load-btn" onclick="loadEmployees()">
+        <div class="spinner"></div>
+        <span class="btn-text">↓ Load Employees</span>
+      </button>
+
+      <!-- SUBMISSION STATUS BANNER -->
+      <div class="submission-banner" id="submission-banner">
+        <div class="sb-top">
+          <div class="sb-icon-title">
+            <div class="sb-icon" id="sb-banner-icon"></div>
+            <div>
+              <div class="sb-title" id="sb-banner-title"></div>
+              <div class="sb-meta" id="sb-banner-meta"></div>
+            </div>
+          </div>
+          <div class="sb-actions" id="sb-banner-actions"></div>
+        </div>
+      </div>
+
+      <div class="summary-bar" id="summary-bar"></div>
+
+      <!-- SEARCH — hidden until employees loaded -->
+      <div class="search-wrap hidden" id="search-wrap">
+        <input type="text" id="emp-search" placeholder="Search by name or employee code…" oninput="filterEmployees(this.value)" />
+      </div>
+
+      <div class="emp-list-header hidden" id="emp-list-header">
+        <div class="emp-count" id="emp-count"></div>
+        <div class="quick-actions">
+          <button class="quick-btn" id="qa-present" onclick="markAll('Present')">All Present</button>
+          <button class="quick-btn" id="qa-weekoff" onclick="markAll('Week Off')">All Week Off</button>
+        </div>
+      </div>
+
+      <div class="emp-list" id="emp-list"></div>
+      <div class="empty-state" id="empty-state">No employees found for this facility / department.</div>
+
+      <div class="submit-section hidden" id="submit-section">
+        <input class="marked-by-field" id="marked-by" readonly />
+        <button class="submit-btn" id="submit-btn" onclick="submitAttendance()">
+          <div class="spinner"></div>
+          <span class="btn-text">Submit Attendance</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PANEL: HISTORY -->
+  <div class="app-panel" id="panel-history">
+    <div class="app-content">
+
+      <div class="history-controls">
+        <div class="history-date-wrap">
+          <div class="history-date-label">View date</div>
+          <input type="date" id="hist-date" />
+        </div>
+        <button class="history-load-btn" id="hist-load-btn" onclick="loadHistory()">
+          <div class="spinner"></div>
+          <span class="hist-btn-txt">View →</span>
+        </button>
+      </div>
+
+      <div id="hist-content">
+        <div class="hist-empty">
+          <div class="hist-empty-icon">📅</div>
+          Select a date above to view submitted attendance.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
 </div>
 
 <script>
 /* ══ CONFIG ══════════════════════════════════════════════ */
 const CFG = {
-  AUTH_LIST_URL:        'https://n8n.snitch-workflow.com/webhook/auth-login',
-  AUTH_LOGIN_URL:       'https://n8n.snitch-workflow.com/webhook/auth-login',
-  GET_EMPLOYEES_URL:    'https://n8n.snitch-workflow.com/webhook/get-employees',
-  SUBMIT_URL:           'https://n8n.snitch-workflow.com/webhook/attendance-submit',
-  CHECK_SUBMISSION_URL: 'https://n8n.snitch-workflow.com/webhook/check-submission',
-  REWRITE_REQUEST_URL:  'https://n8n.snitch-workflow.com/webhook/rewrite-request',
+  AUTH_LIST_URL:          'https://n8n.snitch-workflow.com/webhook/auth-login',
+  AUTH_LOGIN_URL:         'https://n8n.snitch-workflow.com/webhook/auth-login',
+  GET_EMPLOYEES_URL:      'https://n8n.snitch-workflow.com/webhook/get-employees',
+  SUBMIT_URL:             'https://n8n.snitch-workflow.com/webhook/attendance-submit',
+  CHECK_SUBMISSION_URL:   'https://n8n.snitch-workflow.com/webhook/check-submission',
+  REWRITE_REQUEST_URL:    'https://n8n.snitch-workflow.com/webhook/rewrite-request',
+  GET_HISTORY_URL:        'https://n8n.snitch-workflow.com/webhook/get-attendance-history',
 };
 
 /* ══ STATE ══════════════════════════════════════════════ */
 let session          = null;
 let employees        = [];
-let submissionState  = null; // null | { submitted, marked_by, marked_at, request_status, request_id }
+let submissionState  = null;
 let inputsLocked     = false;
+let activeAppTab     = 'mark';
 
 /* ══ INIT ════════════════════════════════════════════════ */
 (function init() {
   const today = toISTDateString(new Date());
   document.getElementById('att-date').value = today;
+  document.getElementById('hist-date').value = today;
   updateDateDisplay(today);
   document.getElementById('att-date').addEventListener('change', e => {
     updateDateDisplay(e.target.value);
-    // Reset submission state when date changes
     if (employees.length > 0) {
       resetSubmissionUI();
       checkSubmissionStatus();
@@ -392,6 +485,15 @@ let inputsLocked     = false;
   }
   loadSupervisorList();
 })();
+
+/* ══ APP TABS ════════════════════════════════════════════ */
+function switchAppTab(tab) {
+  activeAppTab = tab;
+  document.getElementById('apptab-mark').classList.toggle('active', tab === 'mark');
+  document.getElementById('apptab-history').classList.toggle('active', tab === 'history');
+  document.getElementById('panel-mark').classList.toggle('active', tab === 'mark');
+  document.getElementById('panel-history').classList.toggle('active', tab === 'history');
+}
 
 /* ══ DATE HELPERS ════════════════════════════════════════ */
 function toISTDateString(d) {
@@ -406,11 +508,18 @@ function updateDateDisplay(val) {
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   document.getElementById('date-display').textContent = `${d} ${months[+m-1]} ${y}`;
 }
+function fmtDate(ds) {
+  if (!ds) return '';
+  try {
+    const [y, m, d] = ds.split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${d} ${months[+m-1]} ${y}`;
+  } catch(e) { return ds; }
+}
 function fmtTimestamp(ts) {
   if (!ts) return '';
-  // ts is IST ISO string like "2026-04-08T09:15:00"
   try {
-    const [datePart, timePart] = ts.split('T');
+    const [datePart, timePart] = String(ts).split('T');
     const [y, m, d] = datePart.split('-');
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const [hh, mm] = timePart.split(':');
@@ -516,9 +625,13 @@ function logout() {
   document.getElementById('login-pin').value = '';
   document.getElementById('login-error').style.display = 'none';
   hideSubmissionBanner();
+  // Reset history panel
+  document.getElementById('hist-content').innerHTML = '<div class="hist-empty"><div class="hist-empty-icon">📅</div>Select a date above to view submitted attendance.</div>';
   const sb = document.getElementById('submit-btn');
   sb.innerHTML = '<div class="spinner"></div><span class="btn-text">Submit Attendance</span>';
   sb.style.background = ''; sb.style.color = ''; sb.disabled = false;
+  // Reset to mark tab
+  switchAppTab('mark');
   document.getElementById('app-screen').classList.remove('active');
   document.getElementById('login-screen').classList.add('active');
   document.getElementById('login-name').innerHTML = '<option value="">Loading…</option>';
@@ -537,9 +650,7 @@ async function checkSubmissionStatus() {
     const data = await res.json();
     submissionState = data;
     return data;
-  } catch(e) {
-    return null;
-  }
+  } catch(e) { return null; }
 }
 
 /* ══ LOAD EMPLOYEES ══════════════════════════════════════ */
@@ -549,7 +660,6 @@ async function loadEmployees() {
   hideSubmissionBanner();
   resetSubmissionUI();
   try {
-    // Run both in parallel
     const [empRes, statusData] = await Promise.all([
       fetch(`${CFG.GET_EMPLOYEES_URL}?facility=${encodeURIComponent(session.facility)}&department=${encodeURIComponent(session.department)}`),
       checkSubmissionStatus(),
@@ -568,30 +678,14 @@ async function loadEmployees() {
 
 /* ══ APPLY SUBMISSION STATE ══════════════════════════════ */
 function applySubmissionState(data) {
-  if (!data || !data.submitted) {
-    // No prior submission — normal mode
-    lockInputs(false);
-    showSubmitButton(true);
-    return;
-  }
-
-  const rs = data.request_status; // null | 'pending' | 'approved' | 'rejected'
-
+  if (!data || !data.submitted) { lockInputs(false); showSubmitButton(true); return; }
+  const rs = data.request_status;
   if (rs === 'approved') {
-    // Manager approved rewrite — unlock for editing
-    lockInputs(false);
-    showSubmitButton(true);
-    showSubmissionBanner('approved', data);
+    lockInputs(false); showSubmitButton(true); showSubmissionBanner('approved', data);
   } else if (rs === 'pending') {
-    // Request sent, waiting for manager
-    lockInputs(true);
-    showSubmitButton(false);
-    showSubmissionBanner('pending-approval', data);
+    lockInputs(true); showSubmitButton(false); showSubmissionBanner('pending-approval', data);
   } else {
-    // Submitted, no pending request (or rejected)
-    lockInputs(true);
-    showSubmitButton(false);
-    showSubmissionBanner('submitted', data);
+    lockInputs(true); showSubmitButton(false); showSubmissionBanner('submitted', data);
   }
 }
 
@@ -611,9 +705,7 @@ function showSubmitButton(show) {
     btn.disabled = false;
     btn.style.background = '';
     btn.innerHTML = '<div class="spinner"></div><span class="btn-text">Submit Attendance</span>';
-  } else {
-    sec.classList.add('hidden');
-  }
+  } else { sec.classList.add('hidden'); }
 }
 
 function showSubmissionBanner(type, data) {
@@ -622,10 +714,8 @@ function showSubmissionBanner(type, data) {
   const title   = document.getElementById('sb-banner-title');
   const meta    = document.getElementById('sb-banner-meta');
   const actions = document.getElementById('sb-banner-actions');
-
   banner.className = `submission-banner ${type}`;
   banner.style.display = 'block';
-
   if (type === 'submitted') {
     icon.textContent  = '✅';
     title.textContent = 'Attendance already submitted';
@@ -646,19 +736,16 @@ function showSubmissionBanner(type, data) {
 
 function hideSubmissionBanner() {
   const b = document.getElementById('submission-banner');
-  b.style.display = 'none';
-  b.className = 'submission-banner';
+  b.style.display = 'none'; b.className = 'submission-banner';
 }
 
 function resetSubmissionUI() {
-  submissionState = null;
-  inputsLocked    = false;
+  submissionState = null; inputsLocked = false;
   hideSubmissionBanner();
   const sec = document.getElementById('submit-section');
   const btn = document.getElementById('submit-btn');
   sec.classList.add('hidden');
-  btn.disabled = false;
-  btn.style.background = '';
+  btn.disabled = false; btn.style.background = '';
   btn.innerHTML = '<div class="spinner"></div><span class="btn-text">Submit Attendance</span>';
 }
 
@@ -672,11 +759,9 @@ function openRewriteModal() {
   document.getElementById('rewrite-reason').value = '';
   document.getElementById('rewrite-modal').classList.add('open');
 }
-
 function closeRewriteModal() {
   document.getElementById('rewrite-modal').classList.remove('open');
 }
-
 async function submitRewriteRequest() {
   const reason = document.getElementById('rewrite-reason').value.trim();
   if (!reason) { showToast('Please enter a reason for the edit request.', 'error'); return; }
@@ -684,8 +769,7 @@ async function submitRewriteRequest() {
   btn.classList.add('loading'); btn.disabled = true;
   try {
     const res = await fetch(CFG.REWRITE_REQUEST_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         attendance_date:  document.getElementById('att-date').value,
         facility:         session.facility,
@@ -699,7 +783,6 @@ async function submitRewriteRequest() {
     if (!data.success) throw new Error(data.message || 'Request failed');
     closeRewriteModal();
     showToast('Edit request sent to manager.', 'success');
-    // Refresh submission state
     const statusData = await checkSubmissionStatus();
     applySubmissionState(statusData);
   } catch(e) {
@@ -717,19 +800,11 @@ function renderEmployeeList(statusData) {
   const search = document.getElementById('search-wrap');
   list.innerHTML = '';
   document.getElementById('emp-search').value = '';
-
   if (employees.length === 0) {
-    empty.classList.add('visible');
-    header.classList.add('hidden');
-    search.classList.add('hidden');
-    return;
+    empty.classList.add('visible'); header.classList.add('hidden'); search.classList.add('hidden'); return;
   }
-
-  empty.classList.remove('visible');
-  header.classList.remove('hidden');
-  search.classList.remove('hidden');
+  empty.classList.remove('visible'); header.classList.remove('hidden'); search.classList.remove('hidden');
   document.getElementById('emp-count').textContent = `${employees.length} employee${employees.length !== 1 ? 's' : ''}`;
-
   const statuses = ['Present','Absent','Week Off','Sick Leave','Planned Leave','Unplanned Leave'];
   employees.forEach((emp, idx) => {
     const row  = document.createElement('div');
@@ -754,9 +829,7 @@ function filterEmployees(query) {
   const q = query.toLowerCase().trim();
   document.querySelectorAll('.emp-row').forEach((row, idx) => {
     const emp   = employees[idx];
-    const match = !q ||
-      emp.employee_name.toLowerCase().includes(q) ||
-      emp.employee_code.toLowerCase().includes(q);
+    const match = !q || emp.employee_name.toLowerCase().includes(q) || emp.employee_code.toLowerCase().includes(q);
     row.classList.toggle('hidden-by-search', !match);
   });
 }
@@ -764,10 +837,7 @@ function filterEmployees(query) {
 /* ══ STATUS CHANGE ═══════════════════════════════════════ */
 function onStatusChange(sel, idx) {
   if (inputsLocked) return;
-  const cls = {
-    'Present':'present','Absent':'absent','Week Off':'week-off',
-    'Sick Leave':'sick-leave','Planned Leave':'planned-leave','Unplanned Leave':'unplanned-leave'
-  }[sel.value] || '';
+  const cls = {'Present':'present','Absent':'absent','Week Off':'week-off','Sick Leave':'sick-leave','Planned Leave':'planned-leave','Unplanned Leave':'unplanned-leave'}[sel.value] || '';
   sel.className = `status-select ${cls}`;
   const rf = document.querySelector(`.remarks-field[data-idx="${idx}"]`);
   if (rf) {
@@ -776,24 +846,17 @@ function onStatusChange(sel, idx) {
   }
   updateSummary();
 }
-
 function markAll(status) {
   if (inputsLocked) return;
-  document.querySelectorAll('.status-select').forEach(sel => {
-    sel.value = status; onStatusChange(sel, +sel.dataset.idx);
-  });
+  document.querySelectorAll('.status-select').forEach(sel => { sel.value = status; onStatusChange(sel, +sel.dataset.idx); });
 }
-
 function updateSummary() {
   const bar = document.getElementById('summary-bar');
   if (employees.length === 0) { bar.classList.remove('visible'); return; }
   const counts = {};
-  document.querySelectorAll('.status-select').forEach(sel => {
-    counts[sel.value] = (counts[sel.value]||0)+1;
-  });
+  document.querySelectorAll('.status-select').forEach(sel => { counts[sel.value] = (counts[sel.value]||0)+1; });
   const lbl = {'Present':'present','Absent':'absent'};
-  bar.innerHTML = Object.entries(counts).map(([s,c]) =>
-    `<div class="sum-chip ${lbl[s]||'other'}">${s}: ${c}</div>`).join('');
+  bar.innerHTML = Object.entries(counts).map(([s,c]) => `<div class="sum-chip ${lbl[s]||'other'}">${s}: ${c}</div>`).join('');
   bar.classList.add('visible');
 }
 
@@ -828,18 +891,106 @@ async function submitAttendance() {
     btn.innerHTML = '✓ Submitted';
     btn.style.background = '#1f9e5e';
     btn.disabled = true;
-    // Lock inputs after successful submit and show banner
     lockInputs(true);
-    showSubmissionBanner('submitted', {
-      marked_by: session.supervisor_name,
-      marked_at: payload.marked_at,
-      request_status: null,
-    });
-    document.getElementById('submit-section').classList.remove('hidden'); // keep visible (locked)
+    showSubmissionBanner('submitted', { marked_by: session.supervisor_name, marked_at: payload.marked_at, request_status: null });
+    document.getElementById('submit-section').classList.remove('hidden');
   } catch(e) {
     showToast(e.message || 'Submission failed. Try again.', 'error');
     btn.classList.remove('loading'); btn.disabled = false;
   }
+}
+
+/* ══ HISTORY TAB ══════════════════════════════════════════ */
+async function loadHistory() {
+  if (!session) return;
+  const date    = document.getElementById('hist-date').value;
+  if (!date) { showToast('Please select a date.', 'error'); return; }
+  const btn     = document.getElementById('hist-load-btn');
+  const content = document.getElementById('hist-content');
+  btn.classList.add('loading'); btn.disabled = true;
+  content.innerHTML = '<div class="hist-skeleton"></div>';
+
+  try {
+    const url = `${CFG.GET_HISTORY_URL}?facility=${encodeURIComponent(session.facility)}&department=${encodeURIComponent(session.department)}&attendance_date=${date}&supervisor_name=${encodeURIComponent(session.supervisor_name)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Server error ' + res.status);
+    const data = await res.json();
+    renderHistory(data, date);
+  } catch(e) {
+    content.innerHTML = `<div class="hist-empty"><div class="hist-empty-icon">⚠️</div>Could not load history.<br>${escHtml(e.message)}</div>`;
+  } finally {
+    btn.classList.remove('loading'); btn.disabled = false;
+  }
+}
+
+function renderHistory(data, date) {
+  const content = document.getElementById('hist-content');
+  const rows    = data.records || [];
+
+  if (rows.length === 0) {
+    content.innerHTML = `
+      <div class="hist-empty">
+        <div class="hist-empty-icon">📭</div>
+        No attendance submission found for<br><strong>${fmtDate(date)}</strong> — ${escHtml(session.department)} / ${escHtml(session.facility)}
+      </div>`;
+    return;
+  }
+
+  // Header info banner
+  const markedBy = rows[0].MARKED_BY || rows[0].marked_by || '—';
+  const markedAt = rows[0].MARKED_AT || rows[0].marked_at || '';
+
+  // Compute summary
+  const counts = {};
+  rows.forEach(r => {
+    const s = r.ATTENDANCE_STATUS || r.attendance_status || '—';
+    counts[s] = (counts[s] || 0) + 1;
+  });
+  const statusCls = {'Present':'present','Absent':'absent','Week Off':'week-off','Sick Leave':'sick-leave','Planned Leave':'planned-leave','Unplanned Leave':'unplanned-leave'};
+  const lbl = {'Present':'present','Absent':'absent'};
+
+  const summaryHtml = Object.entries(counts)
+    .map(([s,c]) => `<div class="sum-chip ${lbl[s]||'other'}">${s}: ${c}</div>`)
+    .join('');
+
+  const tableRows = rows.map(r => {
+    const status     = r.ATTENDANCE_STATUS || r.attendance_status || '—';
+    const empName    = r.EMPLOYEE_NAME     || r.employee_name     || '—';
+    const empCode    = r.EMPLOYEE_CODE     || r.employee_code     || '—';
+    const remarks    = r.REMARKS           || r.remarks           || '';
+    const facility   = r.FACILITY          || r.facility          || '';
+    const cls        = statusCls[status] || 'week-off';
+    return `<tr>
+      <td>
+        <div class="hist-emp-name">${escHtml(empName)}</div>
+        <div class="hist-emp-code">${escHtml(empCode)}${facility ? ' · ' + escHtml(facility) : ''}</div>
+      </td>
+      <td><span class="hist-status ${cls}">${escHtml(status)}</span></td>
+      <td class="hist-remarks">${remarks ? escHtml(remarks) : '<span style="color:var(--text-3)">—</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  content.innerHTML = `
+    <div class="hist-info-banner">
+      <div class="hi-icon">📋</div>
+      <div class="hi-text">
+        <strong>${fmtDate(date)}</strong> · ${escHtml(session.department)} / ${escHtml(session.facility)}<br>
+        Submitted by <strong>${escHtml(markedBy)}</strong>${markedAt ? ' · ' + fmtTimestamp(markedAt) : ''}
+      </div>
+    </div>
+    <div class="hist-summary">${summaryHtml}</div>
+    <div class="hist-table-wrap">
+      <table class="hist-table">
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Status</th>
+            <th>Remarks</th>
+          </tr>
+        </thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>`;
 }
 
 /* ══ TOAST ═══════════════════════════════════════════════ */
