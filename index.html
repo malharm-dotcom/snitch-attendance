@@ -1735,7 +1735,13 @@ function renderTodayStatus(data, today) {
 
     DEPARTMENTS.forEach(dept => {
       const key = `${facility}|${dept}`;
-      const rec = lookup[key];
+      // For south facilities: if this exact slot missing, check the other south facility
+      // (south supervisor marks under their own facility but covers both WH1+WH2)
+      let rec = lookup[key];
+      if (!rec && isSouthMgr) {
+        const otherFacility = facility === 'WH1' ? 'WH2' : 'WH1';
+        rec = lookup[`${otherFacility}|${dept}`];
+      }
       if (rec) {
         const late = isAfterDeadline(rec.marked_at);
         const cardCls   = late ? 'late' : 'submitted';
