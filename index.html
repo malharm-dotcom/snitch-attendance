@@ -1294,7 +1294,7 @@ async function submitRewriteRequest() {
   } finally { btn.classList.remove('loading'); btn.disabled = false; }
 }
 
-/* ══ RENDER EMPLOYEE LIST ══ */
+/* ══ RENDER EMPLOYEE LIST — grouped by dept ══ */
 function renderEmployeeList(statusData) {
   const list   = document.getElementById('emp-list');
   const header = document.getElementById('emp-list-header');
@@ -1307,21 +1307,45 @@ function renderEmployeeList(statusData) {
   }
   empty.classList.remove('visible'); header.classList.remove('hidden'); search.classList.remove('hidden');
   document.getElementById('emp-count').textContent = `${employees.length} employee${employees.length !== 1 ? 's' : ''}`;
+
+  const depts    = (session.departments && session.departments.length > 0) ? session.departments : [session.department];
+  const multDept = depts.length > 1;
   const statuses = ['Present','Absent','Week Off','Sick Leave','Planned Leave','Unplanned Leave'];
-  employees.forEach((emp, idx) => {
-    const row = document.createElement('div');
-    row.className = 'emp-row';
-    const opts = statuses.map(s => `<option value="${s}"${s==='Present'?' selected':''}>${s}</option>`).join('');
-    row.innerHTML = `
-      <div class="emp-row-top">
-        <div class="emp-info">
-          <div class="emp-name">${escHtml(emp.employee_name)}</div>
-          <div class="emp-code">${escHtml(emp.employee_code)}${emp.facility ? ' · ' + escHtml(emp.facility) : ''}</div>
+
+  // Re-order employees array: grouped by dept in session.departments order
+  const orderedEmps = [];
+  depts.forEach(dept => employees.filter(e => e.department === dept).forEach(emp => orderedEmps.push(emp)));
+  employees.forEach(emp => { if (!orderedEmps.includes(emp)) orderedEmps.push(emp); });
+  employees.length = 0;
+  orderedEmps.forEach(e => employees.push(e));
+
+  depts.forEach(dept => {
+    const deptEmps = employees.filter(e => e.department === dept);
+    if (deptEmps.length === 0) return;
+
+    if (multDept) {
+      const hdr = document.createElement('div');
+      hdr.style.cssText = 'font-size:10px;font-family:var(--mono);font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--text-3);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 12px;margin-top:12px;margin-bottom:4px';
+      hdr.textContent = dept;
+      list.appendChild(hdr);
+    }
+
+    deptEmps.forEach(emp => {
+      const idx = employees.indexOf(emp);
+      const row = document.createElement('div');
+      row.className = 'emp-row';
+      const opts = statuses.map(s => `<option value="${s}"${s==='Present'?' selected':''}>${s}</option>`).join('');
+      row.innerHTML = `
+        <div class="emp-row-top">
+          <div class="emp-info">
+            <div class="emp-name">${escHtml(emp.employee_name)}</div>
+            <div class="emp-code">${escHtml(emp.employee_code)}${emp.facility ? ' · ' + escHtml(emp.facility) : ''}</div>
+          </div>
+          <select class="status-select present" onchange="onStatusChange(this,${idx})" data-idx="${idx}">${opts}</select>
         </div>
-        <select class="status-select present" onchange="onStatusChange(this,${idx})" data-idx="${idx}">${opts}</select>
-      </div>
-      <textarea class="remarks-field" placeholder="Remarks (optional)…" rows="1" data-idx="${idx}"></textarea>`;
-    list.appendChild(row);
+        <textarea class="remarks-field" placeholder="Remarks (optional)…" rows="1" data-idx="${idx}"></textarea>`;
+      list.appendChild(row);
+    });
   });
   updateSummary();
 }
@@ -1359,48 +1383,75 @@ function updateSummary() {
   bar.classList.add('visible');
 }
 
-/* ══ SUBMIT ══ */
+/* ══ SUBMIT — one call per dept ══ */
 async function submitAttendance() {
   if (inputsLocked) return;
   const btn = document.getElementById('submit-btn');
-  // Count summary for confirmation
-  const counts = {};
-  document.querySelectorAll('.status-select').forEach(sel => { counts[sel.value] = (counts[sel.value]||0)+1; });
-  const summary = Object.entries(counts).map(([s,c]) => `${s}: ${c}`).join(', ');
   btn.classList.add('loading'); btn.disabled = true;
+
+  const depts    = (session.departments && session.departments.length > 0) ? session.departments : [session.department];
+  const date     = document.getElementById('att-date').value;
+  const markedAt = toISTTimestamp();
+  const errors   = [];
+  const submitted = [];
+
   try {
-    const empPayload = employees.map((emp, idx) => ({
-      employee_id:       emp.id,
-      employee_code:     emp.employee_code,
-      employee_name:     emp.employee_name,
-      attendance_status: document.querySelector(`.status-select[data-idx="${idx}"]`)?.value || 'Present',
-      remarks:           document.querySelector(`.remarks-field[data-idx="${idx}"]`)?.value.trim() || '',
-    }));
-    const payload = {
-      attendance_date: document.getElementById('att-date').value,
-      facility:        session.facility,
-      department:      session.department,           // primary — goes into header table
-      departments:     session.departments || [session.department], // full array — for reference
-      marked_by:       session.supervisor_name,
-      marked_at:       toISTTimestamp(),
-      employees:       empPayload,
-    };
-    const res  = await fetch(CFG.SUBMIT_URL, {
-      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
-    });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.message || 'Submit failed');
-    showToast(`✓ Submitted — ${summary}`, 'success');
-    btn.classList.remove('loading');
-    btn.innerHTML = '✓ Submitted';
-    btn.style.background = '#1f9e5e';
-    btn.disabled = true;
-    lockInputs(true);
-    showSubmissionBanner('submitted', { marked_by: session.supervisor_name, marked_at: payload.marked_at, request_status: null });
-    document.getElementById('submit-section').classList.remove('hidden');
-    unlockDate();
+    for (const dept of depts) {
+      const deptEmps = employees.filter(e => e.department === dept);
+      if (deptEmps.length === 0) continue;
+
+      const empPayload = deptEmps.map(emp => {
+        const idx = employees.indexOf(emp);
+        return {
+          employee_id:       emp.id,
+          employee_code:     emp.employee_code,
+          employee_name:     emp.employee_name,
+          attendance_status: document.querySelector(`.status-select[data-idx="${idx}"]`)?.value || 'Present',
+          remarks:           document.querySelector(`.remarks-field[data-idx="${idx}"]`)?.value.trim() || '',
+        };
+      });
+
+      const payload = {
+        attendance_date: date,
+        facility:        session.facility,
+        department:      dept,
+        marked_by:       session.supervisor_name,
+        marked_at:       markedAt,
+        employees:       empPayload,
+      };
+
+      try {
+        const res  = await fetch(CFG.SUBMIT_URL, {
+          method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message || 'Submit failed for ' + dept);
+        submitted.push(dept);
+      } catch(e) { errors.push(dept + ': ' + (e.message || 'error')); }
+    }
+
+    if (submitted.length > 0) {
+      const counts = {};
+      document.querySelectorAll('.status-select').forEach(sel => { counts[sel.value] = (counts[sel.value]||0)+1; });
+      const summary = Object.entries(counts).map(([s,c]) => `${s}: ${c}`).join(', ');
+      showToast(`✓ Submitted — ${summary}`, 'success');
+    }
+    if (errors.length > 0) showToast('Errors: ' + errors.join('; '), 'error');
+
+    if (errors.length === 0) {
+      btn.classList.remove('loading');
+      btn.innerHTML = '✓ Submitted';
+      btn.style.background = '#1f9e5e';
+      btn.disabled = true;
+      lockInputs(true);
+      showSubmissionBanner('submitted', { marked_by: session.supervisor_name, marked_at: markedAt, request_status: null });
+      document.getElementById('submit-section').classList.remove('hidden');
+      unlockDate();
+    } else {
+      btn.classList.remove('loading'); btn.disabled = false;
+    }
   } catch(e) {
-    showToast(e.message || 'Submission failed. Try again.', 'error');
+    showToast(e.message || 'Submission failed.', 'error');
     btn.classList.remove('loading'); btn.disabled = false;
   }
 }
@@ -1611,7 +1662,12 @@ function showMgrSkeleton() {
 
 /* ══ MANAGER — TODAY'S STATUS ══ */
 const FACILITIES = ['WH1','WH2','NORTH'];
-const DEPARTMENTS = ['B2C Forward','B2B Forward','B2B Return','Inward','Inventory','B2C Return','Logistics','Ops','Admin','B2C','Manager'];
+const DEPARTMENTS = [
+  'B2C Forward','B2C Return',
+  'B2B Forward','B2B Return',
+  'Inventory','Inward',
+  'Admin','Ops','Logistics'
+];
 
 async function loadTodayStatus() {
   const btn = document.getElementById('today-refresh-btn');
@@ -1642,12 +1698,17 @@ function renderTodayStatus(data, today) {
   const lookup = {};
   submissions.forEach(s => { lookup[`${s.facility}|${s.department}`] = s; });
 
+  // Facility filter — WH1/WH2 manager sees south only, NORTH sees north only
+  const mgrFacility = session ? session.facility : '';
+  const isSouthMgr  = mgrFacility === 'WH1' || mgrFacility === 'WH2';
+  const visibleFacilities = isSouthMgr ? ['WH1','WH2'] : [mgrFacility];
+
   const nowIST = new Date(Date.now() + 5.5*3600000);
   const deadlinePassed = nowIST.getHours() > 10 || (nowIST.getHours() === 10 && nowIST.getMinutes() > 30);
-  const totalSlots = FACILITIES.length * DEPARTMENTS.length;
-  const submittedCount = submissions.length;
-  const missingCount = totalSlots - submittedCount;
-  const lateCount = submissions.filter(s => isAfterDeadline(s.marked_at)).length;
+  const totalSlots    = visibleFacilities.length * DEPARTMENTS.length;
+  const submittedCount = submissions.filter(s => visibleFacilities.includes(s.facility)).length;
+  const missingCount  = totalSlots - submittedCount;
+  const lateCount     = submissions.filter(s => visibleFacilities.includes(s.facility) && isAfterDeadline(s.marked_at)).length;
 
   let html = '';
 
@@ -1667,8 +1728,8 @@ function renderTodayStatus(data, today) {
     ${lateCount > 0 ? `<div class="sum-chip other" style="border-color:rgba(201,122,0,0.3);color:var(--warn)">Late: ${lateCount}</div>` : ''}
   </div>`;
 
-  // Group by facility
-  FACILITIES.forEach(facility => {
+  // Group by visible facility only
+  visibleFacilities.forEach(facility => {
     html += `<div style="margin-bottom:6px;margin-top:16px;font-size:10px;font-family:var(--mono);font-weight:700;color:var(--text-3);letter-spacing:0.1em;text-transform:uppercase;padding:0 2px">${facility}</div>`;
     html += `<div class="dept-status-grid">`;
 
