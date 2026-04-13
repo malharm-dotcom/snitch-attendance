@@ -1694,21 +1694,30 @@ function renderTodayStatus(data, today) {
   const container = document.getElementById('today-status-container');
   const submissions = data.submissions || [];
 
-  // Build lookup: "FACILITY|DEPT" → submission record
+  // Build lookup: "FACILITY|DEPT" → submission record (normalised to uppercase+trim)
   const lookup = {};
-  submissions.forEach(s => { lookup[`${s.facility}|${s.department}`] = s; });
+  submissions.forEach(s => {
+    const fac  = (s.facility   || '').trim().toUpperCase();
+    const dept = (s.department || '').trim();
+    lookup[`${fac}|${dept}`] = s;
+  });
 
   // Facility filter — WH1/WH2 manager sees south only, NORTH sees north only
-  const mgrFacility = session ? session.facility : '';
+  const mgrFacility = (session ? session.facility : '').trim().toUpperCase();
   const isSouthMgr  = mgrFacility === 'WH1' || mgrFacility === 'WH2';
   const visibleFacilities = isSouthMgr ? ['WH1','WH2'] : [mgrFacility];
+
+  // DEBUG — remove after confirming fix
+  console.log('[TodayStatus] mgrFacility:', mgrFacility, '| isSouthMgr:', isSouthMgr);
+  console.log('[TodayStatus] lookup keys:', Object.keys(lookup));
+  console.log('[TodayStatus] visibleFacilities:', visibleFacilities);
 
   const nowIST = new Date(Date.now() + 5.5*3600000);
   const deadlinePassed = nowIST.getHours() > 10 || (nowIST.getHours() === 10 && nowIST.getMinutes() > 30);
   const totalSlots    = visibleFacilities.length * DEPARTMENTS.length;
-  const submittedCount = submissions.filter(s => visibleFacilities.includes(s.facility)).length;
+  const submittedCount = submissions.filter(s => visibleFacilities.includes((s.facility||'').trim().toUpperCase())).length;
   const missingCount  = totalSlots - submittedCount;
-  const lateCount     = submissions.filter(s => visibleFacilities.includes(s.facility) && isAfterDeadline(s.marked_at)).length;
+  const lateCount     = submissions.filter(s => visibleFacilities.includes((s.facility||'').trim().toUpperCase()) && isAfterDeadline(s.marked_at)).length;
 
   let html = '';
 
@@ -1734,12 +1743,11 @@ function renderTodayStatus(data, today) {
     html += `<div class="dept-status-grid">`;
 
     DEPARTMENTS.forEach(dept => {
-      const key = `${facility}|${dept}`;
-      // For south facilities: if this exact slot missing, check the other south facility
-      // (south supervisor marks under their own facility but covers both WH1+WH2)
+      const key = `${facility.toUpperCase()}|${dept}`;
+      // For south: if this exact slot missing, check the other south facility
       let rec = lookup[key];
       if (!rec && isSouthMgr) {
-        const otherFacility = facility === 'WH1' ? 'WH2' : 'WH1';
+        const otherFacility = facility.toUpperCase() === 'WH1' ? 'WH2' : 'WH1';
         rec = lookup[`${otherFacility}|${dept}`];
       }
       if (rec) {
