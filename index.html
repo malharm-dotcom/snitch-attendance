@@ -909,7 +909,8 @@ async function doLogin() {
     session = {
       supervisor_name: data.supervisor_name,
       facility:        data.facility,
-      department:      data.department,
+      department:      data.department,          // primary dept (display)
+      departments:     data.departments || [data.department], // full array
       role:            role,
     };
     if (role === 'manager') {
@@ -948,7 +949,11 @@ function enterSupApp() {
   document.getElementById('topbar-name').style.color = '';
   document.getElementById('sb-name').textContent = session.supervisor_name;
   document.getElementById('sb-facility').textContent = session.facility;
-  document.getElementById('sb-department').textContent = session.department;
+  // Show all departments if multiple, else just primary
+  const deptDisplay = (session.departments && session.departments.length > 1)
+    ? session.departments.join(' + ')
+    : session.department;
+  document.getElementById('sb-department').textContent = deptDisplay;
   document.getElementById('marked-by').value = session.supervisor_name;
   if (session._approvedDate) lockDateToApproved(session._approvedDate);
 }
@@ -1138,8 +1143,13 @@ async function loadEmployees() {
   hideSubmissionBanner();
   resetSubmissionUI();
   try {
+    // Build departments param — use full array if available, fallback to single dept
+    const depts = (session.departments && session.departments.length > 0)
+      ? session.departments.join(',')
+      : session.department;
+
     const [empRes, statusData] = await Promise.all([
-      fetch(`${CFG.GET_EMPLOYEES_URL}?facility=${encodeURIComponent(session.facility)}&department=${encodeURIComponent(session.department)}`),
+      fetch(`${CFG.GET_EMPLOYEES_URL}?facility=${encodeURIComponent(session.facility)}&departments=${encodeURIComponent(depts)}&department=${encodeURIComponent(session.department)}`),
       checkSubmissionStatus(),
     ]);
     if (!empRes.ok) throw new Error('Server error');
@@ -1369,7 +1379,8 @@ async function submitAttendance() {
     const payload = {
       attendance_date: document.getElementById('att-date').value,
       facility:        session.facility,
-      department:      session.department,
+      department:      session.department,           // primary — goes into header table
+      departments:     session.departments || [session.department], // full array — for reference
       marked_by:       session.supervisor_name,
       marked_at:       toISTTimestamp(),
       employees:       empPayload,
@@ -1600,7 +1611,7 @@ function showMgrSkeleton() {
 
 /* ══ MANAGER — TODAY'S STATUS ══ */
 const FACILITIES = ['WH1','WH2','NORTH'];
-const DEPARTMENTS = ['Inventory','Retail_return','InwardB2B_Retail','B2C','B2C_Return','Helper','Local_Logistic','Ops'];
+const DEPARTMENTS = ['B2C Forward','B2B Forward','B2B Return','Inward','Inventory','B2C Return','Logistics','Ops','Admin','B2C','Manager'];
 
 async function loadTodayStatus() {
   const btn = document.getElementById('today-refresh-btn');
@@ -1636,8 +1647,6 @@ function renderTodayStatus(data, today) {
   const totalSlots = FACILITIES.length * DEPARTMENTS.length;
   const submittedCount = submissions.length;
   const missingCount = totalSlots - submittedCount;
-
-  // Summary chips
   const lateCount = submissions.filter(s => isAfterDeadline(s.marked_at)).length;
 
   let html = '';
@@ -1647,31 +1656,34 @@ function renderTodayStatus(data, today) {
     const nowH = nowIST.getHours(), nowM = nowIST.getMinutes();
     const minsLeft = (10*60+30) - (nowH*60+nowM);
     html += `<div class="today-deadline-banner">⏰ Submission deadline: 10:30 AM IST &nbsp;·&nbsp; ${minsLeft > 0 ? minsLeft + ' min remaining' : 'Deadline passed'}</div>`;
+  } else {
+    html += `<div class="today-deadline-banner" style="background:rgba(217,48,48,0.07);border-color:rgba(217,48,48,0.3);color:var(--danger)">⏰ Submission deadline (10:30 AM IST) has passed</div>`;
   }
 
   // Summary bar
   html += `<div class="today-summary-bar">
     <div class="sum-chip present">Submitted: ${submittedCount}</div>
     <div class="sum-chip absent">Missing: ${missingCount}</div>
-    ${lateCount > 0 ? `<div class="sum-chip other">Late: ${lateCount}</div>` : ''}
+    ${lateCount > 0 ? `<div class="sum-chip other" style="border-color:rgba(201,122,0,0.3);color:var(--warn)">Late: ${lateCount}</div>` : ''}
   </div>`;
 
   // Group by facility
   FACILITIES.forEach(facility => {
-    html += `<div style="margin-bottom:6px;margin-top:14px;font-size:10px;font-family:var(--mono);font-weight:700;color:var(--text-3);letter-spacing:0.1em;text-transform:uppercase">${facility}</div>`;
+    html += `<div style="margin-bottom:6px;margin-top:16px;font-size:10px;font-family:var(--mono);font-weight:700;color:var(--text-3);letter-spacing:0.1em;text-transform:uppercase;padding:0 2px">${facility}</div>`;
     html += `<div class="dept-status-grid">`;
+
     DEPARTMENTS.forEach(dept => {
       const key = `${facility}|${dept}`;
       const rec = lookup[key];
       if (rec) {
         const late = isAfterDeadline(rec.marked_at);
-        const cardCls = late ? 'late' : 'submitted';
-        const badgeCls = late ? 'late' : 'submitted';
+        const cardCls   = late ? 'late' : 'submitted';
+        const badgeCls  = late ? 'late' : 'submitted';
         const badgeLabel = late ? '⚠ Late' : '✓ Submitted';
         html += `<div class="dept-card ${cardCls}">
           <div class="dept-card-left">
             <div class="dept-card-name">${escHtml(dept)}</div>
-            <div class="dept-card-time">By ${escHtml(rec.marked_by)} · ${fmtTime(rec.marked_at)}</div>
+            <div class="dept-card-time">By <strong>${escHtml(rec.marked_by)}</strong> · ${fmtTime(rec.marked_at)}</div>
           </div>
           <div class="dept-card-right">
             <span class="dept-status-badge ${badgeCls}">${badgeLabel}</span>
@@ -1682,7 +1694,7 @@ function renderTodayStatus(data, today) {
         html += `<div class="dept-card missing">
           <div class="dept-card-left">
             <div class="dept-card-name">${escHtml(dept)}</div>
-            <div class="dept-card-time" style="color:var(--danger)">Not submitted${deadlinePassed ? ' — overdue' : ''}</div>
+            <div class="dept-card-time" style="color:var(--danger)">${deadlinePassed ? 'Overdue — not submitted' : 'Not yet submitted'}</div>
           </div>
           <div class="dept-card-right">
             <span class="dept-status-badge missing">✗ Missing</span>
