@@ -611,15 +611,22 @@ input[type="date"]:disabled{opacity:0.5;cursor:not-allowed}
         </button>
       </div>
 
-      <!-- Status filter pills -->
-      <div class="hist-filter-row" id="hist-filter-row" style="display:none">
-        <span class="hist-filter-pill active" data-status="all" onclick="setHistFilter(this,'all')">All</span>
-        <span class="hist-filter-pill" data-status="Present" onclick="setHistFilter(this,'Present')">Present</span>
-        <span class="hist-filter-pill" data-status="Absent" onclick="setHistFilter(this,'Absent')">Absent</span>
-        <span class="hist-filter-pill" data-status="Week Off" onclick="setHistFilter(this,'Week Off')">Week Off</span>
-        <span class="hist-filter-pill" data-status="Sick Leave" onclick="setHistFilter(this,'Sick Leave')">Sick Leave</span>
-        <span class="hist-filter-pill" data-status="Planned Leave" onclick="setHistFilter(this,'Planned Leave')">Planned Leave</span>
-        <span class="hist-filter-pill" data-status="Unplanned Leave" onclick="setHistFilter(this,'Unplanned Leave')">Unplanned Leave</span>
+<!-- Status filter pills -->
+<div class="hist-filter-row" id="hist-filter-row" style="display:none">
+  <span class="hist-filter-pill active" data-status="all" onclick="setHistFilter(this,'all')">All</span>
+  <span class="hist-filter-pill" data-status="Present" onclick="setHistFilter(this,'Present')">Present</span>
+  <span class="hist-filter-pill" data-status="Absent" onclick="setHistFilter(this,'Absent')">Absent</span>
+  <span class="hist-filter-pill" data-status="Week Off" onclick="setHistFilter(this,'Week Off')">Week Off</span>
+  <span class="hist-filter-pill" data-status="Sick Leave" onclick="setHistFilter(this,'Sick Leave')">Sick Leave</span>
+  <span class="hist-filter-pill" data-status="Half Day" onclick="setHistFilter(this,'Half Day')">Half Day</span>
+  <span class="hist-filter-pill" data-status="Holiday" onclick="setHistFilter(this,'Holiday')">Holiday</span>
+  <span class="hist-filter-pill" data-status="Work On Holiday" onclick="setHistFilter(this,'Work On Holiday')">Work On Holiday</span>
+  <span class="hist-filter-pill" data-status="Paid Leave" onclick="setHistFilter(this,'Paid Leave')">Paid Leave</span>
+  <span class="hist-filter-pill" data-status="Unpaid Leave" onclick="setHistFilter(this,'Unpaid Leave')">Unpaid Leave</span>
+  <span class="hist-filter-pill" data-status="Maternity Leave" onclick="setHistFilter(this,'Maternity Leave')">Maternity Leave</span>
+  <span class="hist-filter-pill" data-status="Paternity Leave" onclick="setHistFilter(this,'Paternity Leave')">Paternity Leave</span>
+  <span class="hist-filter-pill" data-status="Bereavement Leave" onclick="setHistFilter(this,'Bereavement Leave')">Bereavement Leave</span>
+</div>
       </div>
 
       <div id="hist-content">
@@ -1310,7 +1317,11 @@ function renderEmployeeList(statusData) {
 
   const depts    = (session.departments && session.departments.length > 0) ? session.departments : [session.department];
   const multDept = depts.length > 1;
-  const statuses = ['Present','Absent','Week Off','Sick Leave','Planned Leave','Unplanned Leave'];
+  const statuses = [
+  'Present', 'Absent', 'Week Off', 'Half Day', 'Holiday', 'Work On Holiday',
+  'Sick Leave', 'Paid Leave', 'Unpaid Leave',
+  'Maternity Leave', 'Paternity Leave', 'Bereavement Leave'
+];
 
   // Re-order employees array: grouped by dept in session.departments order
   const orderedEmps = [];
