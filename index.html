@@ -429,7 +429,7 @@ input[type="date"]:focus{border-color:var(--accent-d)}input[type="date"]:disable
     <div class="mgr-tabs">
       <button class="mgr-tab-btn active" id="mgr-tab-pending" onclick="switchMgrTab('pending')">Pending <span class="tab-badge" id="badge-pending">0</span></button>
       <button class="mgr-tab-btn" id="mgr-tab-resolved" onclick="switchMgrTab('resolved')">Resolved <span class="tab-badge empty" id="badge-resolved">0</span></button>
-      <button class="mgr-tab-btn" id="mgr-tab-today" onclick="switchMgrTab('today')">Today's Status</button>
+      <button class="mgr-tab-btn" id="mgr-tab-today" onclick="switchMgrTab('today')">Attendance Log</button>
     </div>
     <div id="mgr-panel-requests">
       <div class="refresh-row">
@@ -438,16 +438,23 @@ input[type="date"]:focus{border-color:var(--accent-d)}input[type="date"]:disable
       </div>
       <div id="requests-container"></div>
     </div>
-    <div id="mgr-panel-today" style="display:none">
-      <div class="refresh-row">
-        <div class="refresh-meta" id="today-refresh-meta">-</div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <button class="csv-btn" id="mgr-full-csv-btn" onclick="downloadManagerFullCSV()">&#11015; Full CSV</button>
-          <button class="refresh-btn" id="today-refresh-btn" onclick="loadTodayStatus()"><div class="spin-sm"></div><span class="ref-txt">Refresh</span></button>
-        </div>
-      </div>
-      <div id="today-status-container"></div>
+  <div id="mgr-panel-today" style="display:none">
+  <div class="refresh-row" style="flex-wrap:wrap;gap:10px">
+    <div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;flex-shrink:0">
+      <div style="font-size:10px;font-family:var(--mono);color:var(--text-2);text-transform:uppercase;letter-spacing:0.1em;white-space:nowrap">Date</div>
+      <input type="date" id="mgr-att-date" />
     </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <div class="refresh-meta" id="today-refresh-meta">—</div>
+      <button class="csv-btn" id="mgr-full-csv-btn" onclick="downloadManagerFullCSV()" disabled>&#11015; Full CSV</button>
+      <button class="history-load-btn" id="today-refresh-btn" onclick="loadTodayStatus()">
+        <div class="spinner"></div>
+        <span class="hist-btn-txt">Load →</span>
+      </button>
+    </div>
+  </div>
+  <div id="today-status-container"></div>
+</div>
   </div>
 </div>
 
@@ -1364,18 +1371,24 @@ function downloadSupervisorCSV() {
 async function loadTodayStatus() {
   const btn = document.getElementById('today-refresh-btn');
   const container = document.getElementById('today-status-container');
+  // Read date from picker; fall back to today
+  const dp = document.getElementById('mgr-att-date');
+  const selectedDate = (dp && dp.value) ? dp.value : todayIST();
+  if (dp && !dp.value) dp.value = selectedDate;
   if (btn) { btn.classList.add('loading'); btn.disabled = true; }
+  const csvBtn = document.getElementById('mgr-full-csv-btn');
+  if (csvBtn) csvBtn.disabled = true;
   container.innerHTML = '<div class="mgr-skeleton"></div><div class="mgr-skeleton"></div><div class="mgr-skeleton"></div>';
   todaySubmissionsData = [];
   try {
-    const today = todayIST();
-    const res = await fetch(`${CFG.TODAY_STATUS_URL}?attendance_date=${today}`);
+    const res = await fetch(`${CFG.TODAY_STATUS_URL}?attendance_date=${selectedDate}`);
     if (!res.ok) throw new Error('Server error ' + res.status);
     const data = await res.json();
     todaySubmissionsData = data.submissions || [];
-    renderTodayStatus(data, today);
+    renderTodayStatus(data, selectedDate);
     const el = document.getElementById('today-refresh-meta');
-    if (el) el.textContent = `Updated ${new Date().toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })}`;
+    if (el) el.textContent = `${fmtDate(selectedDate)} · Updated ${new Date().toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })}`;
+    if (csvBtn) csvBtn.disabled = false;
   } catch(e) {
     container.innerHTML = `<div class="mgr-empty"><div class="mgr-empty-icon">⚠️</div>Could not load today's status.<br>${escHtml(e.message)}</div>`;
   } finally {
@@ -1399,14 +1412,17 @@ function renderTodayStatus(data, today) {
   const visibleFacs   = isSouthMgr ? ['WH1','WH2'] : [mgrFacility];
 
   const nowIST       = new Date(Date.now() + 5.5 * 3600000);
-  const deadlinePast = nowIST.getHours() > 10 || (nowIST.getHours() === 10 && nowIST.getMinutes() > 30);
+  const isPastDate   = today < todayIST();
+  const deadlinePast = isPastDate || nowIST.getHours() > 10 || (nowIST.getHours() === 10 && nowIST.getMinutes() > 30);
   const totalSlots   = visibleFacs.length * DEPARTMENTS.length;
   const subCount     = submissions.filter(s => visibleFacs.includes((s.facility || '').trim().toUpperCase())).length;
   const missCount    = totalSlots - subCount;
   const lateCount    = submissions.filter(s => visibleFacs.includes((s.facility || '').trim().toUpperCase()) && isAfterDeadline(s.marked_at)).length;
 
   let html = '';
-  if (!deadlinePast) {
+  if (isPastDate) {
+    html += `<div class="today-deadline-banner" style="background:rgba(30,100,220,0.06);border-color:rgba(30,100,220,0.25);color:#1e64dc">📅 Viewing past date: ${fmtDate(today)}</div>`;
+  } else if (!deadlinePast) {
     const mins = (10 * 60 + 30) - (nowIST.getHours() * 60 + nowIST.getMinutes());
     html += `<div class="today-deadline-banner">⏰ Submission deadline: 10:30 AM IST &nbsp;·&nbsp; ${mins > 0 ? mins + ' min remaining' : 'Deadline reached'}</div>`;
   } else {
@@ -1546,9 +1562,10 @@ function downloadDetailCSV() {
 // and exports a single consolidated CSV for today's date
 // ══════════════════════════════════════════════════════════════
 async function downloadManagerFullCSV() {
-  const btn = document.getElementById('mgr-full-csv-btn');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Preparing…'; }
-  const today      = todayIST();
+  const csvBtn = document.getElementById('mgr-full-csv-btn');
+  if (csvBtn) { csvBtn.disabled = true; csvBtn.textContent = '⏳ Preparing…'; }
+  const dp = document.getElementById('mgr-att-date');
+  const today = (dp && dp.value) ? dp.value : todayIST();
   const mgrFac     = (session ? session.facility : '').trim().toUpperCase();
   const isSouth    = mgrFac === 'WH1' || mgrFac === 'WH2';
   const visibleFacs = isSouth ? ['WH1','WH2'] : [mgrFac];
@@ -1605,12 +1622,12 @@ async function downloadManagerFullCSV() {
     ].map(v => csvCell(v)));
 
     const csv = [headers.join(','), ...csvRows.map(r => r.join(','))].join('\n');
-    triggerCSVDownload(csv, `attendance_full_${visibleFacs.join('-')}_${today}.csv`);
+    triggerCSVDownload(csv, `attendance_${visibleFacs.join('-')}_${today}.csv`);
     showToast(`Full CSV downloaded — ${allRows.length} records`, 'success');
   } catch(e) {
     showToast('CSV export failed: ' + e.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '⬇ Full CSV'; }
+    if (csvBtn) { csvBtn.disabled = false; csvBtn.textContent = '⬇ Full CSV'; }
   }
 }
 
@@ -1638,8 +1655,14 @@ function switchMgrTab(tab) {
   });
   document.getElementById('mgr-panel-requests').style.display = tab === 'today' ? 'none' : 'block';
   document.getElementById('mgr-panel-today').style.display    = tab === 'today' ? 'block' : 'none';
-  if (tab === 'today') loadTodayStatus();
-  else renderRequests();
+  if (tab === 'today') {
+    // Set default date to today if not already set
+    const dp = document.getElementById('mgr-att-date');
+    if (dp && !dp.value) dp.value = todayIST();
+    loadTodayStatus();
+  } else {
+    renderRequests();
+  }
 }
 
 // ══ MANAGER REQUESTS ══
