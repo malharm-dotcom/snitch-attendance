@@ -863,7 +863,7 @@ function confirmShiftSwitch() {
 
 function closeShiftWarnModal() {
   document.getElementById('shift-warn-modal').classList.remove('open');
-  pendingShiftSwitch = null;
+ 
 }
 
 function applyShiftSwitch(shift) {
@@ -875,6 +875,7 @@ function applyShiftSwitch(shift) {
   updateShiftToggleUI(shift);
   clearEmployeePanel();
   showToast(`Switched to ${shift} Shift`, 'info');
+  loadEmployees();
 }
 
 function clearEmployeePanel() {
