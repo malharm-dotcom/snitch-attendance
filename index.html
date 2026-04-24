@@ -1166,7 +1166,7 @@ function renderEmployeeList(statusData) {
   const depts = (session.departments && session.departments.length > 0) ? session.departments : [session.department];
   const multDept = depts.length > 1;
   const statuses = ['Present','Absent','Week Off','Half Day','Holiday','Work On Holiday',
-    'Sick Leave','Paid Leave','Unpaid Leave','Maternity Leave','Paternity Leave','Bereavement Leave'];
+    'Sick Leave','Paid Leave','Unpaid Leave','Maternity Leave','Paternity Leave','Bereavement Leave','Compensatory Off'];
   const orderedEmps = [];
   depts.forEach(dept => employees.filter(e => e.department === dept).forEach(emp => orderedEmps.push(emp)));
   employees.forEach(emp => { if (!orderedEmps.includes(emp)) orderedEmps.push(emp); });
