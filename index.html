@@ -1149,30 +1149,13 @@ async function loadEmployees() {
     const depts = (session.departments && session.departments.length > 0)
       ? session.departments.join(',')
       : session.department;
-    const isSouth = session.facility === 'WH1' || session.facility === 'WH2';
-    const facilities = isSouth ? ['WH1', 'WH2'] : [session.facility];
-
-    // Fetch employees from all relevant facilities in parallel, plus submission status
-    const empFetches = facilities.map(fac =>
-      fetch(`${CFG.GET_EMPLOYEES_URL}?facility=${encodeURIComponent(fac)}&departments=${encodeURIComponent(depts)}&department=${encodeURIComponent(session.department)}&shift=${encodeURIComponent(currentShift)}`)
-        .then(r => r.ok ? r.json() : Promise.resolve({ employees: [] }))
-        .then(data => (data.employees || []).map(e => ({ ...e, _facility: fac })))
-        .catch(() => [])
-    );
-
-    const [allEmpArrays, statusData] = await Promise.all([
-      Promise.all(empFetches),
+    const [empRes, statusData] = await Promise.all([
+      fetch(`${CFG.GET_EMPLOYEES_URL}?facility=${encodeURIComponent(session.facility)}&departments=${encodeURIComponent(depts)}&department=${encodeURIComponent(session.department)}&shift=${encodeURIComponent(currentShift)}`),
       checkSubmissionStatus(),
     ]);
-
-    // Merge employees from all facilities, deduplicate by employee_code
-    const seen = new Map();
-    allEmpArrays.flat().forEach(emp => {
-      const code = emp.employee_code; // employee_code is the unique key
-      if (!seen.has(code)) seen.set(code, emp);
-    });
-    employees = Array.from(seen.values());
-
+    if (!empRes.ok) throw new Error('Server error');
+    const empData = await empRes.json();
+    employees = (empData.employees || []).map(e => ({ ...e, _facility: e.facility || session.facility }));
     renderEmployeeList(statusData);
     applySubmissionState(statusData);
   } catch(e) {
