@@ -1139,13 +1139,30 @@ async function loadEmployees() {
     const depts = (session.departments && session.departments.length > 0)
       ? session.departments.join(',')
       : session.department;
-    const [empRes, statusData] = await Promise.all([
-      fetch(`${CFG.GET_EMPLOYEES_URL}?facility=${encodeURIComponent(session.facility)}&departments=${encodeURIComponent(depts)}&department=${encodeURIComponent(session.department)}&shift=${encodeURIComponent(currentShift)}`),
+    const isSouth = session.facility === 'WH1' || session.facility === 'WH2';
+    const facilities = isSouth ? ['WH1', 'WH2'] : [session.facility];
+
+    // Fetch employees from all relevant facilities in parallel, plus submission status
+    const empFetches = facilities.map(fac =>
+      fetch(`${CFG.GET_EMPLOYEES_URL}?facility=${encodeURIComponent(fac)}&departments=${encodeURIComponent(depts)}&department=${encodeURIComponent(session.department)}&shift=${encodeURIComponent(currentShift)}`)
+        .then(r => r.ok ? r.json() : Promise.resolve({ employees: [] }))
+        .then(data => (data.employees || []).map(e => ({ ...e, _facility: fac })))
+        .catch(() => [])
+    );
+
+    const [allEmpArrays, statusData] = await Promise.all([
+      Promise.all(empFetches),
       checkSubmissionStatus(),
     ]);
-    if (!empRes.ok) throw new Error('Server error');
-    const empData = await empRes.json();
-    employees = empData.employees || [];
+
+    // Merge employees from all facilities, deduplicate by employee_code
+    const seen = new Map();
+    allEmpArrays.flat().forEach(emp => {
+      const code = emp.employee_code || emp.id;
+      if (!seen.has(code)) seen.set(code, emp);
+    });
+    employees = Array.from(seen.values());
+
     renderEmployeeList(statusData);
     applySubmissionState(statusData);
   } catch(e) {
@@ -1282,8 +1299,10 @@ function renderEmployeeList(statusData) {
     hideProgressBar(); return;
   }
   empty.classList.remove('visible'); header.classList.remove('hidden'); search.classList.remove('hidden');
+  const isSouthSup = session.facility === 'WH1' || session.facility === 'WH2';
+  const facLabel = isSouthSup ? 'WH1 + WH2' : session.facility;
   document.getElementById('emp-count').textContent =
-    `${employees.length} employee${employees.length !== 1 ? 's' : ''} \u00b7 ${currentShift} Shift`;
+    `${employees.length} employee${employees.length !== 1 ? 's' : ''} \u00b7 ${facLabel} \u00b7 ${currentShift} Shift`;
   const depts = (session.departments && session.departments.length > 0) ? session.departments : [session.department];
   const multDept = depts.length > 1;
   const statuses = ['Present','LOP','Week Off','Half Day','Holiday','Work On Holiday',
@@ -1309,7 +1328,7 @@ function renderEmployeeList(statusData) {
         <div class="emp-row-top">
           <div class="emp-info">
             <div class="emp-name">${escHtml(emp.employee_name)}</div>
-            <div class="emp-code">${escHtml(emp.employee_code)}${emp.facility ? ' \u00b7 ' + escHtml(emp.facility) : ''}</div>
+            <div class="emp-code">${escHtml(emp.employee_code)}${(emp._facility || emp.facility) ? ' \u00b7 ' + escHtml(emp._facility || emp.facility) : ''}</div>
           </div>
           <select class="status-select present" onchange="onStatusChange(this,${idx})" data-idx="${idx}">${opts}</select>
         </div>
@@ -1372,10 +1391,27 @@ async function submitAttendance() {
   const markedAt = toISTTimestamp();
   const errors = []; const submitted = [];
   try {
+    // Build unique dept+facility combos based on each employee's actual facility
+    const isSouth = session.facility === 'WH1' || session.facility === 'WH2';
+    const submitGroups = []; // [{ dept, facility, emps }]
     for (const dept of depts) {
       const deptEmps = employees.filter(e => e.department === dept);
       if (deptEmps.length === 0) continue;
-      const empPayload = deptEmps.map(emp => {
+      if (isSouth) {
+        // Group by _facility (WH1 / WH2)
+        const byFac = {};
+        deptEmps.forEach(emp => {
+          const fac = emp._facility || session.facility;
+          if (!byFac[fac]) byFac[fac] = [];
+          byFac[fac].push(emp);
+        });
+        Object.entries(byFac).forEach(([fac, emps]) => submitGroups.push({ dept, facility: fac, emps }));
+      } else {
+        submitGroups.push({ dept, facility: session.facility, emps: deptEmps });
+      }
+    }
+    for (const { dept, facility, emps } of submitGroups) {
+      const empPayload = emps.map(emp => {
         const idx = employees.indexOf(emp);
         return {
           employee_id: emp.id, employee_code: emp.employee_code, employee_name: emp.employee_name,
@@ -1388,7 +1424,7 @@ async function submitAttendance() {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             attendance_date: date,
-            facility: session.facility,
+            facility: facility,
             department: dept,
             marked_by: session.supervisor_name,
             marked_at: markedAt,
@@ -1397,9 +1433,9 @@ async function submitAttendance() {
           }),
         });
         const data = await res.json();
-        if (!data.success) throw new Error(data.message || 'Submit failed for ' + dept);
-        submitted.push(dept);
-      } catch(e) { errors.push(dept + ': ' + (e.message || 'error')); }
+        if (!data.success) throw new Error(data.message || `Submit failed for ${dept}/${facility}`);
+        submitted.push(`${dept}/${facility}`);
+      } catch(e) { errors.push(`${dept}/${facility}: ` + (e.message || 'error')); }
     }
     if (submitted.length > 0) {
       const counts = {};
@@ -2038,11 +2074,21 @@ async function loadHistory() {
 
   // Build dates array (cap 31)
   const dates = [];
-  let cur = new Date(fromDate + 'T00:00:00');
-  const end = new Date(toDate + 'T00:00:00');
-  while (cur <= end && dates.length <= 31) {
-    dates.push(cur.toISOString().slice(0, 10));
-    cur.setDate(cur.getDate() + 1);
+  {
+    // Build date array arithmetically to avoid UTC/IST toISOString shift
+    const pad = n => String(n).padStart(2,'0');
+    let [fy,fm,fd] = fromDate.split('-').map(Number);
+    let [ty,tm,td] = toDate.split('-').map(Number);
+    let y=fy,m=fm,d=fd;
+    while (dates.length <= 31) {
+      const ds = `${y}-${pad(m)}-${pad(d)}`;
+      dates.push(ds);
+      if (ds === toDate) break;
+      d++;
+      const daysInMonth = new Date(y, m, 0).getDate();
+      if (d > daysInMonth) { d = 1; m++; }
+      if (m > 12) { m = 1; y++; }
+    }
   }
 
   const depts = (session.departments && session.departments.length > 0) ? session.departments : [session.department];
@@ -2368,11 +2414,19 @@ async function loadMgrMatrix() {
   const visibleFacs = isSouth ? ['WH1','WH2'] : [mgrFacility];
 
   const dates = [];
-  let cur = new Date(fromDate + 'T00:00:00');
-  const endD = new Date(toDate + 'T00:00:00');
-  while (cur <= endD && dates.length <= 31) {
-    dates.push(cur.toISOString().slice(0, 10));
-    cur.setDate(cur.getDate() + 1);
+  {
+    const pad = n => String(n).padStart(2,'0');
+    let [fy,fm,fd] = fromDate.split('-').map(Number);
+    let y=fy,m=fm,d=fd;
+    while (dates.length <= 31) {
+      const ds = `${y}-${pad(m)}-${pad(d)}`;
+      dates.push(ds);
+      if (ds === toDate) break;
+      d++;
+      const daysInMonth = new Date(y, m, 0).getDate();
+      if (d > daysInMonth) { d = 1; m++; }
+      if (m > 12) { m = 1; y++; }
+    }
   }
 
   mgrMatrixData = {}; mgrMatrixSlots = [];
