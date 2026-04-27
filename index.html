@@ -608,15 +608,18 @@ input[type="date"]:focus{border-color:var(--accent-d)}input[type="date"]:disable
             <input type="date" id="mgr-att-date" />
           </div>
           <div id="mgr-range-wrap" style="display:none;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px">
-            <div style="font-size:10px;font-family:var(--mono);color:var(--text-2);text-transform:uppercase;letter-spacing:0.1em;white-space:nowrap">&rarr; To</div>
+            <div style="font-size:10px;font-family:var(--mono);color:var(--text-2);text-transform:uppercase;letter-spacing:0.1em;white-space:nowrap">To</div>
             <input type="date" id="mgr-date-to" />
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <div class="refresh-meta" id="today-refresh-meta">&mdash;</div>
+          <div class="hist-view-toggle">
+            <button class="hist-view-btn active" id="mgr-btn-daily" onclick="setMgrMode('daily')">Daily</button>
+            <button class="hist-view-btn" id="mgr-btn-matrix" onclick="setMgrMode('matrix')">Matrix</button>
+          </div>
           <button class="csv-btn" id="mgr-full-csv-btn" onclick="downloadManagerFullCSV()" disabled>&#11015; Full CSV</button>
-          <button class="history-load-btn" id="mgr-matrix-btn" onclick="setMgrView('matrix');loadTodayStatus()" style="background:var(--surface);border:1.5px solid var(--border2);color:var(--text-2)">&#9776; Matrix</button>
-          <button class="history-load-btn" id="today-refresh-btn" onclick="setMgrView('day');loadTodayStatus()"><div class="spinner"></div><span class="hist-btn-txt">Load &rarr;</span></button>
+          <button class="history-load-btn" id="today-refresh-btn" onclick="smartMgrLoad()"><div class="spinner"></div><span class="hist-btn-txt">Load &rarr;</span></button>
         </div>
       </div>
       <div class="mgr-summary-bar" id="mgr-summary-bar" style="display:none"></div>
@@ -927,6 +930,13 @@ function logout() {
   currentShift = 'Day'; pendingShiftSwitch = null;
   histView = 'list'; histMatrixData = {}; histMatrixEmps = [];
   mgrView = 'day'; mgrMatrixData = {}; mgrActiveFilter = 'all'; mgrMatrixSlots = [];
+  mgrRangeOpen = false;
+  const _btnDay = document.getElementById('mgr-btn-daily');
+  const _btnMat = document.getElementById('mgr-btn-matrix');
+  const _rngWrp = document.getElementById('mgr-range-wrap');
+  if (_btnDay) _btnDay.classList.add('active');
+  if (_btnMat) _btnMat.classList.remove('active');
+  if (_rngWrp) _rngWrp.style.display = 'none';
   if (mgrRefreshTimer) { clearInterval(mgrRefreshTimer); mgrRefreshTimer = null; }
   clearEmployeePanel();
   hideSubmissionBanner(); hidePastDateNotice();
@@ -1158,7 +1168,7 @@ async function loadEmployees() {
     // Merge employees from all facilities, deduplicate by employee_code
     const seen = new Map();
     allEmpArrays.flat().forEach(emp => {
-      const code = emp.employee_code || emp.id;
+      const code = emp.employee_code; // employee_code is the unique key
       if (!seen.has(code)) seen.set(code, emp);
     });
     employees = Array.from(seen.values());
@@ -1414,7 +1424,7 @@ async function submitAttendance() {
       const empPayload = emps.map(emp => {
         const idx = employees.indexOf(emp);
         return {
-          employee_id: emp.id, employee_code: emp.employee_code, employee_name: emp.employee_name,
+          employee_id: emp.id || null, employee_code: emp.employee_code, employee_name: emp.employee_name,
           attendance_status: document.querySelector(`.status-select[data-idx="${idx}"]`)?.value || 'Present',
           remarks: document.querySelector(`.remarks-field[data-idx="${idx}"]`)?.value.trim() || '',
         };
@@ -2031,20 +2041,22 @@ document.getElementById('shift-warn-modal').addEventListener('click', e => { if 
 
 
 
+
 // ══════════════════════════════════════════════════════════════════
-// HISTORY + MANAGER ADDITIONS — clean, no _orig pattern
+// HISTORY + MANAGER ADDITIONS
 // ══════════════════════════════════════════════════════════════════
 
-// ── STATE ──────────────────────────────────────────────────────────────────
-let histMatrixData    = {};
-let histMatrixEmps    = [];
-let mgrActiveFilter   = 'all';
-let mgrMatrixData     = {};
-let mgrMatrixSlots    = [];
+// ── STATE ─────────────────────────────────────────────────────────────────
+let histMatrixData  = {};
+let histMatrixEmps  = [];
+let mgrActiveFilter = 'all';
+let mgrMatrixData   = {};
+let mgrMatrixSlots  = [];
+let mgrRangeOpen    = false;
 
-// ── HISTORY: init date range defaults ─────────────────────────────────────
-(function initHistoryDates() {
-  const today = new Date(Date.now() + 5.5 * 3600000).toISOString().slice(0, 10);
+// ── INIT DEFAULT DATES ────────────────────────────────────────────────────
+(function initDates() {
+  const today    = new Date(Date.now() + 5.5 * 3600000).toISOString().slice(0, 10);
   const sevenAgo = new Date(Date.now() - 6 * 86400000 + 5.5 * 3600000).toISOString().slice(0, 10);
   const fromEl = document.getElementById('hist-date-from');
   const toEl   = document.getElementById('hist-date-to');
@@ -2054,8 +2066,26 @@ let mgrMatrixSlots    = [];
   if (mgrTo && !mgrTo.value) mgrTo.value = today;
 })();
 
-// ── HISTORY LOAD — replaces original loadHistory() ────────────────────────
-// (original was removed during build; this is the only definition)
+// ── DATE ARITHMETIC HELPER (avoids UTC/IST toISOString shift) ────────────
+function buildDateRange(fromDate, toDate) {
+  const dates = [];
+  const pad = n => String(n).padStart(2, '0');
+  let [y, m, d] = fromDate.split('-').map(Number);
+  while (dates.length <= 31) {
+    const ds = `${y}-${pad(m)}-${pad(d)}`;
+    dates.push(ds);
+    if (ds === toDate) break;
+    d++;
+    if (d > new Date(y, m, 0).getDate()) { d = 1; m++; }
+    if (m > 12) { m = 1; y++; }
+  }
+  return dates;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SUPERVISOR HISTORY
+// ══════════════════════════════════════════════════════════════════
+
 async function loadHistory() {
   if (!session) return;
   const fromDate = (document.getElementById('hist-date-from') || {}).value || '';
@@ -2072,65 +2102,62 @@ async function loadHistory() {
   document.querySelectorAll('.hist-filter-pill').forEach(p => p.classList.toggle('active', p.dataset.status === 'all'));
   lastHistoryRows = []; histMatrixData = {}; histMatrixEmps = [];
 
-  // Build dates array (cap 31)
-  const dates = [];
-  {
-    // Build date array arithmetically to avoid UTC/IST toISOString shift
-    const pad = n => String(n).padStart(2,'0');
-    let [fy,fm,fd] = fromDate.split('-').map(Number);
-    let [ty,tm,td] = toDate.split('-').map(Number);
-    let y=fy,m=fm,d=fd;
-    while (dates.length <= 31) {
-      const ds = `${y}-${pad(m)}-${pad(d)}`;
-      dates.push(ds);
-      if (ds === toDate) break;
-      d++;
-      const daysInMonth = new Date(y, m, 0).getDate();
-      if (d > daysInMonth) { d = 1; m++; }
-      if (m > 12) { m = 1; y++; }
-    }
-  }
-
+  const dates = buildDateRange(fromDate, toDate);
   const depts = (session.departments && session.departments.length > 0) ? session.departments : [session.department];
 
   try {
+    // Determine correct marked_by to query with.
+    // submissionState.marked_by is set when the mark tab has been loaded for today.
+    // For past dates or when state is stale, we try both the logged-in supervisor
+    // AND the actual submitter (if known) so records are always found.
+    const _submittedBy = (submissionState && submissionState.marked_by)
+      ? submissionState.marked_by : null;
+    const supervisorsToTry = _submittedBy && _submittedBy !== session.supervisor_name
+      ? [_submittedBy, session.supervisor_name]
+      : [session.supervisor_name];
+
     const allFetches = [];
     dates.forEach(date => {
       depts.forEach(dept => {
-        allFetches.push(
-          fetch(`${CFG.GET_HISTORY_URL}?facility=${encodeURIComponent(session.facility)}&department=${encodeURIComponent(dept)}&attendance_date=${date}&supervisor_name=${encodeURIComponent(session.supervisor_name)}`)
-            .then(r => r.ok ? r.json() : Promise.resolve({ records: [] }))
-            .then(data => ({ date, dept, records: data.records || [] }))
-            .catch(() => ({ date, dept, records: [] }))
-        );
+        supervisorsToTry.forEach(sv => {
+          allFetches.push(
+            fetch(`${CFG.GET_HISTORY_URL}?facility=${encodeURIComponent(session.facility)}&department=${encodeURIComponent(dept)}&attendance_date=${date}&supervisor_name=${encodeURIComponent(sv)}`)
+              .then(r => r.ok ? r.json() : Promise.resolve({ records: [] }))
+              .then(data => ({ date, dept, records: data.records || [], _sv: sv }))
+              .catch(() => ({ date, dept, records: [], _sv: sv }))
+          );
+        });
       });
     });
     const results = await Promise.all(allFetches);
 
-    // Build matrix data
+    // Build matrix data structure — deduplicate: first result with records wins per date+dept
     const empMeta = {};
     results.forEach(({ date, dept, records }) => {
       if (!histMatrixData[date]) histMatrixData[date] = {};
       records.forEach(r => {
         const code = r.EMPLOYEE_CODE || r.employee_code || '';
         const name = r.EMPLOYEE_NAME || r.employee_name || '';
-        if (!empMeta[code]) empMeta[code] = { name, dept };
-        histMatrixData[date][code] = {
-          status:   r.ATTENDANCE_STATUS || r.attendance_status || '',
-          remarks:  r.REMARKS           || r.remarks           || '',
-          markedBy: r.MARKED_BY         || r.marked_by         || '',
-          markedAt: r.MARKED_AT         || r.marked_at         || '',
-          EMPLOYEE_CODE: code, EMPLOYEE_NAME: name,
-          ATTENDANCE_STATUS: r.ATTENDANCE_STATUS || r.attendance_status || '',
-          REMARKS: r.REMARKS || r.remarks || '',
-          MARKED_BY: r.MARKED_BY || r.marked_by || '',
-          MARKED_AT: r.MARKED_AT || r.marked_at || '',
-          DEPARTMENT: dept, FACILITY: session.facility, _dept: dept,
-        };
+        if (code && !empMeta[code]) empMeta[code] = { name, dept };
+        // Only write if not already populated (first fetch for this code+date wins)
+        if (code && !histMatrixData[date][code]) {
+          histMatrixData[date][code] = {
+            status:   r.ATTENDANCE_STATUS || r.attendance_status || '',
+            remarks:  r.REMARKS           || r.remarks           || '',
+            markedBy: r.MARKED_BY         || r.marked_by         || '',
+            markedAt: r.MARKED_AT         || r.marked_at         || '',
+            EMPLOYEE_CODE: code, EMPLOYEE_NAME: name,
+            ATTENDANCE_STATUS: r.ATTENDANCE_STATUS || r.attendance_status || '',
+            REMARKS: r.REMARKS || r.remarks || '',
+            MARKED_BY: r.MARKED_BY || r.marked_by || '',
+            MARKED_AT: r.MARKED_AT || r.marked_at || '',
+            DEPARTMENT: dept, FACILITY: r.FACILITY || r.facility || session.facility,
+            _dept: dept,
+          };
+        }
       });
     });
 
-    // Ordered employee list
     histMatrixEmps = [];
     depts.forEach(dept => {
       Object.entries(empMeta)
@@ -2139,23 +2166,18 @@ async function loadHistory() {
         .forEach(([code, m]) => histMatrixEmps.push({ code, name: m.name, dept }));
     });
 
-    // lastHistoryRows for CSV
     dates.forEach(date => {
       Object.values(histMatrixData[date] || {}).forEach(r => lastHistoryRows.push({ ...r, _date: date }));
     });
     lastHistoryDate = dates.length === 1 ? dates[0] : `${fromDate}_to_${toDate}`;
 
-    // Single date → render existing list view; multi-date → matrix
     if (dates.length === 1) {
+      // Single date — build from deduplicated histMatrixData
       const mergedByDept = {};
       depts.forEach(dept => {
-        const seen = new Map();
-        results.filter(r => r.date === dates[0] && r.dept === dept)
-          .forEach(({ records }) => records.forEach(r => {
-            const c = r.EMPLOYEE_CODE || r.employee_code;
-            if (!seen.has(c)) seen.set(c, r);
-          }));
-        mergedByDept[dept] = Array.from(seen.values());
+        const dayData = histMatrixData[dates[0]] || {};
+        mergedByDept[dept] = Object.values(dayData)
+          .filter(r => (r._dept === dept) || (r.DEPARTMENT === dept));
       });
       renderHistoryMultiDept(mergedByDept, depts, dates[0]);
     } else {
@@ -2168,7 +2190,6 @@ async function loadHistory() {
   }
 }
 
-// ── HISTORY MATRIX RENDER ─────────────────────────────────────────────────
 function renderHistoryMatrix(datesArg) {
   const content = document.getElementById('hist-content');
   const dates = datesArg || Object.keys(histMatrixData).sort();
@@ -2176,7 +2197,6 @@ function renderHistoryMatrix(datesArg) {
     content.innerHTML = '<div class="hist-empty"><div class="hist-empty-icon">📭</div>No data found for the selected range.</div>';
     return;
   }
-
   const depts = (session.departments && session.departments.length > 0) ? session.departments : [session.department];
   const isMultiDept = depts.length > 1;
   const todayStr = todayIST();
@@ -2184,30 +2204,21 @@ function renderHistoryMatrix(datesArg) {
 
   function chipInfo(status) {
     const map = {
-      'Present':           ['present', 'P'],
-      'LOP':               ['absent',  'LOP'],
-      'Week Off':          ['week-off','WO'],
-      'Half Day':          ['half',    '½'],
-      'Holiday':           ['holiday', 'HOL'],
-      'Work On Holiday':   ['present', 'WOH'],
-      'Sick Leave':        ['leave',   'SL'],
-      'Paid Leave':        ['leave',   'PL'],
-      'Unpaid Leave':      ['absent',  'UL'],
-      'Maternity Leave':   ['leave',   'ML'],
-      'Paternity Leave':   ['leave',   'PL'],
-      'Bereavement Leave': ['leave',   'BL'],
-      'Compensatory Off':  ['half',    'CO'],
+      'Present':['present','P'], 'LOP':['absent','LOP'], 'Week Off':['week-off','WO'],
+      'Half Day':['half','½'], 'Holiday':['holiday','HOL'], 'Work On Holiday':['present','WOH'],
+      'Sick Leave':['leave','SL'], 'Paid Leave':['leave','PL'], 'Unpaid Leave':['absent','UL'],
+      'Maternity Leave':['leave','ML'], 'Paternity Leave':['leave','PL'],
+      'Bereavement Leave':['leave','BL'], 'Compensatory Off':['half','CO'],
     };
-    return map[status] || ['empty', '–'];
+    return map[status] || ['empty','–'];
   }
 
   const dateThs = dates.map(d => {
-    const dt  = new Date(d + 'T00:00:00');
+    const dt  = new Date(d + 'T12:00:00'); // noon to avoid timezone issues in header display
     const day = String(dt.getDate()).padStart(2, '0');
     const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dt.getMonth()];
     const dow = DOW[dt.getDay()];
-    const isTod = d === todayStr;
-    return `<th><div class="date-col-head${isTod ? ' today-col' : ''}"><div class="date-col-day">${day} ${mon}</div><div class="date-col-dow">${dow}</div></div></th>`;
+    return `<th><div class="date-col-head${d === todayStr ? ' today-col' : ''}"><div class="date-col-day">${day} ${mon}</div><div class="date-col-dow">${dow}</div></div></th>`;
   }).join('');
 
   let bodyHtml = '';
@@ -2219,20 +2230,16 @@ function renderHistoryMatrix(datesArg) {
     }
     const cells = dates.map(d => {
       const rec = histMatrixData[d] && histMatrixData[d][emp.code];
-      if (!rec) return `<td><span class="mx-chip empty" title="Not submitted">–</span></td>`;
+      if (!rec || !rec.status) return `<td><span class="mx-chip empty" title="Not submitted">–</span></td>`;
       const [cls, lbl] = chipInfo(rec.status);
       const tip = rec.remarks ? `${escHtml(rec.status)} · ${escHtml(rec.remarks)}` : escHtml(rec.status);
       return `<td><span class="mx-chip ${cls}" title="${tip}">${lbl}</span></td>`;
     }).join('');
-    bodyHtml += `<tr>
-      <td class="emp-cell">
-        <div class="emp-cell-name" title="${escHtml(emp.name)}">${escHtml(emp.name)}</div>
-        <div class="emp-cell-code">${escHtml(emp.code)}</div>
-      </td>${cells}</tr>`;
+    bodyHtml += `<tr><td class="emp-cell"><div class="emp-cell-name" title="${escHtml(emp.name)}">${escHtml(emp.name)}</div><div class="emp-cell-code">${escHtml(emp.code)}</div></td>${cells}</tr>`;
   });
 
   const totals = {};
-  lastHistoryRows.forEach(r => { const s = r.ATTENDANCE_STATUS || r.status || '–'; totals[s] = (totals[s]||0)+1; });
+  lastHistoryRows.forEach(r => { const s = r.ATTENDANCE_STATUS || '–'; totals[s] = (totals[s]||0)+1; });
   const lbl2 = { 'Present':'present','LOP':'absent' };
   const summaryHtml = Object.entries(totals).map(([s,c]) => `<div class="sum-chip ${lbl2[s]||'other'}">${s}: ${c}</div>`).join('');
   const fromDate = dates[0], toDate = dates[dates.length-1];
@@ -2241,34 +2248,26 @@ function renderHistoryMatrix(datesArg) {
   content.innerHTML = `
     <div class="hist-info-banner" style="margin-bottom:10px">
       <div class="hi-icon">📊</div>
-      <div class="hi-text">
-        <strong>${rangeLbl}</strong> · ${escHtml(depts.join(' + '))} / ${escHtml(session.facility)} · <strong>${histMatrixEmps.length}</strong> employees · <strong>${dates.length}</strong> day${dates.length!==1?'s':''}
-      </div>
+      <div class="hi-text"><strong>${rangeLbl}</strong> · ${escHtml(depts.join(' + '))} / ${escHtml(session.facility)} · <strong>${histMatrixEmps.length}</strong> employees · <strong>${dates.length}</strong> day${dates.length!==1?'s':''}</div>
       <button class="csv-btn" onclick="downloadMatrixCSV()">⬇ Download CSV</button>
     </div>
     <div class="hist-summary" style="margin-bottom:12px">${summaryHtml}</div>
-    <div class="matrix-outer">
-      <div class="matrix-scroll">
-        <table class="matrix-table">
-          <thead><tr><th class="col-emp">Employee</th>${dateThs}</tr></thead>
-          <tbody>${bodyHtml}</tbody>
-        </table>
-      </div>
-    </div>`;
+    <div class="matrix-outer"><div class="matrix-scroll">
+      <table class="matrix-table">
+        <thead><tr><th class="col-emp">Employee</th>${dateThs}</tr></thead>
+        <tbody>${bodyHtml}</tbody>
+      </table>
+    </div></div>`;
   document.getElementById('hist-filter-row').style.display = 'none';
 }
 
-// ── MATRIX CSV ────────────────────────────────────────────────────────────
 function downloadMatrixCSV() {
   const dates = Object.keys(histMatrixData).sort();
   if (!dates.length || !histMatrixEmps.length) { showToast('No data to export', 'error'); return; }
   const depts = (session.departments && session.departments.length > 0) ? session.departments : [session.department];
   const headers = ['Employee Code', 'Employee Name', 'Department', ...dates];
   const rows = histMatrixEmps.map(emp => {
-    const cells = dates.map(d => {
-      const rec = histMatrixData[d] && histMatrixData[d][emp.code];
-      return rec ? (rec.status || '') : '';
-    });
+    const cells = dates.map(d => { const rec = histMatrixData[d] && histMatrixData[d][emp.code]; return rec ? (rec.status || '') : ''; });
     return [emp.code, emp.name, emp.dept, ...cells].map(v => csvCell(v));
   });
   const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -2277,41 +2276,53 @@ function downloadMatrixCSV() {
   showToast('Matrix CSV downloaded', 'success');
 }
 
-// Override downloadSupervisorCSV to use matrix CSV when multi-date
-const _origDLCSV = typeof downloadSupervisorCSV === 'function' ? downloadSupervisorCSV : null;
+// Override downloadSupervisorCSV for multi-date matrix mode
+const _dscOrig = typeof downloadSupervisorCSV === 'function' ? downloadSupervisorCSV : null;
 function downloadSupervisorCSV() {
   if (Object.keys(histMatrixData).length > 1) { downloadMatrixCSV(); return; }
-  if (_origDLCSV) { _origDLCSV(); return; }
-  if (!lastHistoryRows.length) { showToast('No data to export', 'error'); return; }
-  const date  = lastHistoryDate || 'unknown-date';
-  const depts = (session.departments && session.departments.length > 0) ? session.departments : [session.department];
-  const headers = ['Date','Facility','Department','Employee Code','Employee Name','Attendance Status','Remarks','Marked By','Marked At'];
-  const rows = lastHistoryRows.map(r => [
-    date, session.facility,
-    r._dept || r.DEPARTMENT || r.department || '',
-    r.EMPLOYEE_CODE || r.employee_code || '',
-    r.EMPLOYEE_NAME || r.employee_name || '',
-    r.ATTENDANCE_STATUS || r.attendance_status || '',
-    r.REMARKS || r.remarks || '',
-    r.MARKED_BY || r.marked_by || '',
-    r.MARKED_AT || r.marked_at || '',
-  ].map(v => csvCell(v)));
-  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-  triggerCSVDownload(csv, `attendance_${session.facility}_${depts.join('-').replace(/ /g,'_')}_${date}.csv`);
-  showToast('CSV downloaded', 'success');
+  if (_dscOrig) _dscOrig();
 }
 
 // ══════════════════════════════════════════════════════════════════
-// MANAGER — DAILY VIEW WITH SUMMARY BAR + SORTABLE FILTER
+// MANAGER — SMART LOAD (daily or matrix based on date range)
 // ══════════════════════════════════════════════════════════════════
 
-// Override renderTodayStatus to add clickable summary bar
-// We redefine it completely — inlined with summary bar logic
-const _origRenderToday = renderTodayStatus;
-renderTodayStatus = function(data, today) {
-  _origRenderToday(data, today);
+// setMgrMode: switch between Daily and Matrix display modes
+function setMgrMode(mode) {
+  mgrRangeOpen = (mode === 'matrix');
+  const wrap   = document.getElementById('mgr-range-wrap');
+  const btnDay = document.getElementById('mgr-btn-daily');
+  const btnMat = document.getElementById('mgr-btn-matrix');
+  if (wrap)   wrap.style.display = mgrRangeOpen ? 'flex' : 'none';
+  if (btnDay) btnDay.classList.toggle('active', !mgrRangeOpen);
+  if (btnMat) btnMat.classList.toggle('active',  mgrRangeOpen);
+  // Also label the From date picker contextually
+  const fromLabel = document.querySelector('#mgr-panel-today .refresh-row [style*="white-space:nowrap"]');
+  if (fromLabel) fromLabel.textContent = mgrRangeOpen ? 'From' : 'Date';
+}
 
-  // After original renders, replace the old today-summary-bar with our clickable one
+// smartMgrLoad: Load button always respects current mode (Daily or Matrix)
+async function smartMgrLoad() {
+  const fromDate = (document.getElementById('mgr-att-date') || {}).value;
+  const toDate   = (document.getElementById('mgr-date-to')  || {}).value || fromDate;
+  if (mgrRangeOpen) {
+    // Matrix mode
+    if (!fromDate) { showToast('Select a date', 'error'); return; }
+    if (toDate < fromDate) { showToast('To date must be on or after From date', 'error'); return; }
+    const btn = document.getElementById('today-refresh-btn');
+    if (btn) { btn.classList.add('loading'); btn.disabled = true; }
+    await loadMgrMatrix();
+    if (btn) { btn.classList.remove('loading'); btn.disabled = false; }
+  } else {
+    // Daily mode
+    await _origLoadTodayStatus();
+  }
+}
+
+// ── OVERRIDE renderTodayStatus to inject clickable summary bar ────────────
+const _origRenderTodayStatus = renderTodayStatus;
+renderTodayStatus = function(data, today) {
+  _origRenderTodayStatus(data, today);
   const mgrFacility = (session ? session.facility : '').trim().toUpperCase();
   const isSouthMgr  = mgrFacility === 'WH1' || mgrFacility === 'WH2';
   const visibleFacs = isSouthMgr ? ['WH1','WH2'] : [mgrFacility];
@@ -2323,75 +2334,47 @@ renderTodayStatus = function(data, today) {
   const missCount   = totalSlots - subCount;
   mgrActiveFilter   = 'all';
 
-  // Replace the existing today-summary-bar (non-clickable) with clickable version
+  // Replace static summary bar with clickable chips
   const container = document.getElementById('today-status-container');
-  const oldBar = container.querySelector('.today-summary-bar');
+  const oldBar = container ? container.querySelector('.today-summary-bar') : null;
   if (oldBar) {
     const newBar = document.createElement('div');
     newBar.className = 'mgr-summary-bar';
     newBar.id = 'mgr-summary-bar-inner';
     newBar.innerHTML = `
-      <div class="mgr-stat-chip all active-filter" onclick="setMgrFilter('all',this)">
-        <span class="chip-count">${totalSlots}</span>&nbsp;Total
-      </div>
-      <div class="mgr-stat-chip submitted" onclick="setMgrFilter('submitted',this)">
-        <span class="chip-count">${subCount}</span>&nbsp;Submitted
-      </div>
-      <div class="mgr-stat-chip missing" onclick="setMgrFilter('missing',this)">
-        <span class="chip-count">${missCount}</span>&nbsp;Missing
-      </div>
+      <div class="mgr-stat-chip all active-filter" onclick="setMgrFilter('all',this)"><span class="chip-count">${totalSlots}</span>&nbsp;Total</div>
+      <div class="mgr-stat-chip submitted" onclick="setMgrFilter('submitted',this)"><span class="chip-count">${subCount}</span>&nbsp;Submitted</div>
+      <div class="mgr-stat-chip missing" onclick="setMgrFilter('missing',this)"><span class="chip-count">${missCount}</span>&nbsp;Missing</div>
       ${lateCount > 0 ? `<div class="mgr-stat-chip late" onclick="setMgrFilter('late',this)"><span class="chip-count">${lateCount}</span>&nbsp;Late</div>` : ''}`;
     oldBar.replaceWith(newBar);
   }
 };
 
-// ── MGR FILTER: sort dept cards by status ─────────────────────────────────
+// ── MGR FILTER: sort dept cards ───────────────────────────────────────────
 function setMgrFilter(filter, el) {
   mgrActiveFilter = filter;
-
-  // Update chip active states
   const bar = document.getElementById('mgr-summary-bar-inner');
-  if (bar) bar.querySelectorAll('.mgr-stat-chip').forEach(chip => chip.classList.remove('active-filter'));
+  if (bar) bar.querySelectorAll('.mgr-stat-chip').forEach(c => c.classList.remove('active-filter'));
   if (el) el.classList.add('active-filter');
 
   const container = document.getElementById('today-status-container');
   if (!container) return;
-
   container.querySelectorAll('.dept-status-grid').forEach(grid => {
     const cards = Array.from(grid.querySelectorAll('.dept-card'));
     const matching = [], others = [];
-
     cards.forEach(card => {
-      let isMatch = false;
-      if (filter === 'all') {
-        isMatch = true;
-      } else if (filter === 'submitted') {
-        isMatch = card.classList.contains('submitted') && !card.classList.contains('late');
-      } else if (filter === 'missing') {
-        isMatch = card.classList.contains('missing');
-      } else if (filter === 'late') {
-        isMatch = card.classList.contains('late');
-      }
-      if (isMatch) matching.push(card);
-      else others.push(card);
+      let isMatch = filter === 'all' ||
+        (filter === 'submitted' && card.classList.contains('submitted') && !card.classList.contains('late')) ||
+        (filter === 'missing'   && card.classList.contains('missing')) ||
+        (filter === 'late'      && card.classList.contains('late'));
+      (isMatch ? matching : others).push(card);
     });
-
-    // Reorder DOM: matching first, then rest
     [...matching, ...others].forEach(card => grid.appendChild(card));
-
-    // Dim non-matching when a filter is active
     cards.forEach(card => {
-      const isMatch = matching.includes(card);
-      card.style.opacity = (filter === 'all' || isMatch) ? '1' : '0.4';
+      card.style.opacity = (filter === 'all' || matching.includes(card)) ? '1' : '0.4';
     });
-
-    // Highlight matching cards with pulse animation and scroll to first
     if (filter !== 'all' && matching.length > 0) {
-      matching.forEach(card => {
-        card.classList.remove('highlight-jump');
-        void card.offsetWidth;
-        card.classList.add('highlight-jump');
-      });
+      matching.forEach(card => { card.classList.remove('highlight-jump'); void card.offsetWidth; card.classList.add('highlight-jump'); });
       matching[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } else {
       cards.forEach(card => card.classList.remove('highlight-jump'));
@@ -2399,7 +2382,7 @@ function setMgrFilter(filter, el) {
   });
 }
 
-// ── MGR MATRIX (date range view) ──────────────────────────────────────────
+// ── MGR MATRIX ────────────────────────────────────────────────────────────
 async function loadMgrMatrix() {
   const fromDate = (document.getElementById('mgr-att-date') || {}).value;
   const toDate   = (document.getElementById('mgr-date-to')  || {}).value || fromDate;
@@ -2407,38 +2390,25 @@ async function loadMgrMatrix() {
   if (toDate < fromDate) { showToast('To date must be on or after From date', 'error'); return; }
 
   const container = document.getElementById('today-status-container');
+  const bar = document.getElementById('mgr-summary-bar-inner');
+  if (bar) bar.remove();
   container.innerHTML = '<div class="mgr-skeleton"></div><div class="mgr-skeleton"></div>';
 
   const mgrFacility = (session ? session.facility : '').trim().toUpperCase();
   const isSouth     = mgrFacility === 'WH1' || mgrFacility === 'WH2';
   const visibleFacs = isSouth ? ['WH1','WH2'] : [mgrFacility];
-
-  const dates = [];
-  {
-    const pad = n => String(n).padStart(2,'0');
-    let [fy,fm,fd] = fromDate.split('-').map(Number);
-    let y=fy,m=fm,d=fd;
-    while (dates.length <= 31) {
-      const ds = `${y}-${pad(m)}-${pad(d)}`;
-      dates.push(ds);
-      if (ds === toDate) break;
-      d++;
-      const daysInMonth = new Date(y, m, 0).getDate();
-      if (d > daysInMonth) { d = 1; m++; }
-      if (m > 12) { m = 1; y++; }
-    }
-  }
-
+  const dates = buildDateRange(fromDate, toDate);
   mgrMatrixData = {}; mgrMatrixSlots = [];
 
   try {
-    const fetches = dates.map(d =>
-      fetch(`${CFG.TODAY_STATUS_URL}?attendance_date=${d}`)
-        .then(r => r.ok ? r.json() : Promise.resolve({ submissions: [] }))
-        .then(data => ({ date: d, submissions: data.submissions || [] }))
-        .catch(() => ({ date: d, submissions: [] }))
+    const results = await Promise.all(
+      dates.map(d =>
+        fetch(`${CFG.TODAY_STATUS_URL}?attendance_date=${d}`)
+          .then(r => r.ok ? r.json() : Promise.resolve({ submissions: [] }))
+          .then(data => ({ date: d, submissions: data.submissions || [] }))
+          .catch(() => ({ date: d, submissions: [] }))
+      )
     );
-    const results = await Promise.all(fetches);
 
     results.forEach(({ date, submissions }) => {
       mgrMatrixData[date] = {};
@@ -2447,42 +2417,33 @@ async function loadMgrMatrix() {
         const dept = (s.department || '').trim();
         if (!visibleFacs.includes(fac)) return;
         mgrMatrixData[date][`${fac}|${dept}`] = {
-          submitted: true,
-          late: isAfterDeadline(s.marked_at),
-          markedBy: s.marked_by,
-          markedAt: s.marked_at,
+          submitted: true, late: isAfterDeadline(s.marked_at),
+          markedBy: s.marked_by, markedAt: s.marked_at,
         };
       });
     });
+    visibleFacs.forEach(fac => DEPARTMENTS.forEach(dept => mgrMatrixSlots.push({ facility: fac, dept })));
 
-    visibleFacs.forEach(fac => {
-      DEPARTMENTS.forEach(dept => mgrMatrixSlots.push({ facility: fac, dept }));
-    });
-
-    renderMgrMatrix(dates, visibleFacs);
+    renderMgrMatrix(dates);
 
     const el = document.getElementById('today-refresh-meta');
     if (el) el.textContent = `${fmtDate(fromDate)}${fromDate!==toDate?' → '+fmtDate(toDate):''} · Updated ${new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}`;
     const csvBtn = document.getElementById('mgr-full-csv-btn');
     if (csvBtn) csvBtn.disabled = false;
-
   } catch(e) {
     container.innerHTML = `<div class="mgr-empty"><div class="mgr-empty-icon">⚠️</div>Could not load matrix.<br>${escHtml(e.message)}</div>`;
   }
 }
 
-function renderMgrMatrix(dates, visibleFacs) {
+function renderMgrMatrix(dates) {
   const container = document.getElementById('today-status-container');
   const todayStr  = todayIST();
   const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-
   const dateThs = dates.map(d => {
-    const dt  = new Date(d + 'T00:00:00');
+    const dt  = new Date(d + 'T12:00:00');
     const day = String(dt.getDate()).padStart(2,'0');
     const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dt.getMonth()];
-    const dow = DOW[dt.getDay()];
-    const isTod = d === todayStr;
-    return `<th><div class="date-col-head${isTod?' today-col':''}"><div class="date-col-day">${day} ${mon}</div><div class="date-col-dow">${dow}</div></div></th>`;
+    return `<th><div class="date-col-head${d===todayStr?' today-col':''}"><div class="date-col-day">${day} ${mon}</div><div class="date-col-dow">${DOW[dt.getDay()]}</div></div></th>`;
   }).join('');
 
   let bodyHtml = '';
@@ -2490,79 +2451,45 @@ function renderMgrMatrix(dates, visibleFacs) {
   mgrMatrixSlots.forEach(({ facility, dept }) => {
     if (facility !== lastFac) {
       lastFac = facility;
-      bodyHtml += `<tr class="matrix-dept-sep"><td colspan="${dates.length + 1}" style="font-size:11px;padding:8px 14px">${facility}</td></tr>`;
+      bodyHtml += `<tr class="matrix-dept-sep"><td colspan="${dates.length+1}" style="font-size:11px;padding:8px 14px">${facility}</td></tr>`;
     }
     const cells = dates.map(d => {
       const rec = mgrMatrixData[d] && mgrMatrixData[d][`${facility}|${dept}`];
-      if (!rec) {
-        const isPast = d < todayStr;
-        return `<td><span class="mgr-mx-chip missing" title="${isPast?'Not submitted':'Pending'}"><span>${isPast?'✗':'–'}</span></span></td>`;
-      }
-      if (rec.late) {
-        return `<td><span class="mgr-mx-chip late clickable" title="Late · ${escHtml(rec.markedBy)} · ${fmtTime(rec.markedAt)}" onclick="viewDeptAttendance('${facility}','${escHtml(dept)}','${d}','${escHtml(rec.markedBy)}')">LATE</span></td>`;
-      }
+      if (!rec) return `<td><span class="mgr-mx-chip missing" title="${d < todayStr ? 'Not submitted' : 'Pending'}"><span>${d < todayStr ? '✗' : '–'}</span></span></td>`;
+      if (rec.late) return `<td><span class="mgr-mx-chip late clickable" title="Late · ${escHtml(rec.markedBy)} · ${fmtTime(rec.markedAt)}" onclick="viewDeptAttendance('${facility}','${escHtml(dept)}','${d}','${escHtml(rec.markedBy)}')">LATE</span></td>`;
       return `<td><span class="mgr-mx-chip submitted clickable" title="✓ ${escHtml(rec.markedBy)} · ${fmtTime(rec.markedAt)}" onclick="viewDeptAttendance('${facility}','${escHtml(dept)}','${d}','${escHtml(rec.markedBy)}')">✓</span></td>`;
     }).join('');
-    bodyHtml += `<tr>
-      <td class="dept-cell">
-        <div class="dept-cell-name">${escHtml(dept)}</div>
-        <div class="dept-cell-fac">${escHtml(facility)}</div>
-      </td>${cells}</tr>`;
+    bodyHtml += `<tr><td class="dept-cell"><div class="dept-cell-name">${escHtml(dept)}</div><div class="dept-cell-fac">${escHtml(facility)}</div></td>${cells}</tr>`;
   });
 
   let totalSub = 0, totalLate = 0, totalMiss = 0;
-  dates.forEach(d => {
-    mgrMatrixSlots.forEach(({ facility, dept }) => {
-      const rec = mgrMatrixData[d] && mgrMatrixData[d][`${facility}|${dept}`];
-      if (!rec) totalMiss++;
-      else if (rec.late) { totalSub++; totalLate++; }
-      else totalSub++;
-    });
-  });
+  dates.forEach(d => mgrMatrixSlots.forEach(({ facility, dept }) => {
+    const rec = mgrMatrixData[d] && mgrMatrixData[d][`${facility}|${dept}`];
+    if (!rec) totalMiss++; else if (rec.late) { totalSub++; totalLate++; } else totalSub++;
+  }));
 
   const fromDate = dates[0], toDate = dates[dates.length-1];
   container.innerHTML = `
     <div class="mgr-summary-bar" style="display:flex;margin-bottom:14px">
       <div class="mgr-stat-chip submitted" style="cursor:default"><span class="chip-count">${totalSub}</span>&nbsp;Submitted</div>
-      <div class="mgr-stat-chip missing"   style="cursor:default"><span class="chip-count">${totalMiss}</span>&nbsp;Missing</div>
+      <div class="mgr-stat-chip missing" style="cursor:default"><span class="chip-count">${totalMiss}</span>&nbsp;Missing</div>
       ${totalLate>0?`<div class="mgr-stat-chip late" style="cursor:default"><span class="chip-count">${totalLate}</span>&nbsp;Late</div>`:''}
     </div>
-    <div class="mgr-matrix-outer">
-      <div class="mgr-matrix-scroll">
-        <table class="mgr-matrix-table">
-          <thead><tr><th class="col-dept">Dept / Facility</th>${dateThs}</tr></thead>
-          <tbody>${bodyHtml}</tbody>
-        </table>
-      </div>
-    </div>
+    <div class="mgr-matrix-outer"><div class="mgr-matrix-scroll">
+      <table class="mgr-matrix-table">
+        <thead><tr><th class="col-dept">Dept / Facility</th>${dateThs}</tr></thead>
+        <tbody>${bodyHtml}</tbody>
+      </table>
+    </div></div>
     <div style="font-size:10px;font-family:var(--mono);color:var(--text-3);margin-top:6px">Click ✓ or LATE to view employee-level detail.</div>`;
 }
 
-// ── MGR VIEW TOGGLE (Daily vs Matrix) ────────────────────────────────────
-// This is now handled purely via the mgr-range-wrap visibility
-let mgrView = 'day';
-function setMgrView(view) {
-  mgrView = view;
-  const rangeWrap = document.getElementById('mgr-range-wrap');
-  if (rangeWrap) rangeWrap.style.display = view === 'matrix' ? 'flex' : 'none';
-}
-
-// ── OVERRIDE loadTodayStatus to route daily vs matrix ─────────────────────
-// We can't use _orig pattern safely here. Instead we rename the original
-// by wrapping it at call time using the mgrView flag.
-// The original loadTodayStatus is at line ~1556 and calls renderTodayStatus.
-// We override the global after definition:
+// ── OVERRIDE loadTodayStatus (IIFE to safely capture original) ────────────
+let _origLoadTodayStatus;
 (function() {
-  const _orig = loadTodayStatus;
+  _origLoadTodayStatus = loadTodayStatus;
   loadTodayStatus = async function() {
-    if (mgrView === 'matrix') {
-      const btn = document.getElementById('today-refresh-btn');
-      if (btn) { btn.classList.add('loading'); btn.disabled = true; }
-      await loadMgrMatrix();
-      if (btn) { btn.classList.remove('loading'); btn.disabled = false; }
-      return;
-    }
-    await _orig();
+    await _origLoadTodayStatus();
   };
 })();
 
