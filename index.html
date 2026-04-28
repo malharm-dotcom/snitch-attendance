@@ -2119,9 +2119,10 @@ async function loadHistory() {
     results.forEach(({ date, dept, records }) => {
       if (!histMatrixData[date]) histMatrixData[date] = {};
       records.forEach(r => {
-        const code = r.EMPLOYEE_CODE || r.employee_code || '';
-        const name = r.EMPLOYEE_NAME || r.employee_name || '';
-        if (code && !empMeta[code]) empMeta[code] = { name, dept };
+        const code     = r.EMPLOYEE_CODE || r.employee_code || '';
+        const name     = r.EMPLOYEE_NAME || r.employee_name || '';
+        const facility = r.FACILITY      || r.facility      || session.facility;
+        if (code && !empMeta[code]) empMeta[code] = { name, dept, facility };
         // Only write if not already populated (first fetch for this code+date wins)
         if (code && !histMatrixData[date][code]) {
           histMatrixData[date][code] = {
@@ -2134,7 +2135,7 @@ async function loadHistory() {
             REMARKS: r.REMARKS || r.remarks || '',
             MARKED_BY: r.MARKED_BY || r.marked_by || '',
             MARKED_AT: r.MARKED_AT || r.marked_at || '',
-            DEPARTMENT: dept, FACILITY: r.FACILITY || r.facility || session.facility,
+            DEPARTMENT: dept, FACILITY: facility,
             _dept: dept,
           };
         }
@@ -2142,11 +2143,22 @@ async function loadHistory() {
     });
 
     histMatrixEmps = [];
+    const isSouthSup = session.facility === 'WH1' || session.facility === 'WH2';
     depts.forEach(dept => {
-      Object.entries(empMeta)
-        .filter(([, m]) => m.dept === dept)
-        .sort((a, b) => a[1].name.localeCompare(b[1].name))
-        .forEach(([code, m]) => histMatrixEmps.push({ code, name: m.name, dept }));
+      if (isSouthSup) {
+        // Group by facility (WH1 first, then WH2), alphabetically within each
+        ['WH1', 'WH2'].forEach(fac => {
+          Object.entries(empMeta)
+            .filter(([, m]) => m.dept === dept && m.facility === fac)
+            .sort((a, b) => a[1].name.localeCompare(b[1].name))
+            .forEach(([code, m]) => histMatrixEmps.push({ code, name: m.name, dept, facility: m.facility }));
+        });
+      } else {
+        Object.entries(empMeta)
+          .filter(([, m]) => m.dept === dept)
+          .sort((a, b) => a[1].name.localeCompare(b[1].name))
+          .forEach(([code, m]) => histMatrixEmps.push({ code, name: m.name, dept, facility: m.facility || session.facility }));
+      }
     });
 
     dates.forEach(date => {
@@ -2206,10 +2218,17 @@ function renderHistoryMatrix(datesArg) {
 
   let bodyHtml = '';
   let currentDept = null;
+  let currentFac  = null;
+  const isSouthSup = session.facility === 'WH1' || session.facility === 'WH2';
   histMatrixEmps.forEach(emp => {
     if (isMultiDept && emp.dept !== currentDept) {
       currentDept = emp.dept;
+      currentFac  = null;
       bodyHtml += `<tr class="matrix-dept-sep"><td colspan="${dates.length + 1}">${escHtml(emp.dept)}</td></tr>`;
+    }
+    if (isSouthSup && emp.facility && emp.facility !== currentFac) {
+      currentFac = emp.facility;
+      bodyHtml += `<tr class="matrix-dept-sep" style="background:var(--surface2)"><td colspan="${dates.length + 1}" style="font-size:9px;padding:4px 12px;color:var(--text-3);letter-spacing:0.12em">${escHtml(emp.facility)}</td></tr>`;
     }
     const cells = dates.map(d => {
       const rec = histMatrixData[d] && histMatrixData[d][emp.code];
@@ -2218,7 +2237,8 @@ function renderHistoryMatrix(datesArg) {
       const tip = rec.remarks ? `${escHtml(rec.status)} · ${escHtml(rec.remarks)}` : escHtml(rec.status);
       return `<td><span class="mx-chip ${cls}" title="${tip}">${lbl}</span></td>`;
     }).join('');
-    bodyHtml += `<tr><td class="emp-cell"><div class="emp-cell-name" title="${escHtml(emp.name)}">${escHtml(emp.name)}</div><div class="emp-cell-code">${escHtml(emp.code)}</div></td>${cells}</tr>`;
+    const facTag = isSouthSup && emp.facility ? ` · ${escHtml(emp.facility)}` : '';
+    bodyHtml += `<tr><td class="emp-cell"><div class="emp-cell-name" title="${escHtml(emp.name)}">${escHtml(emp.name)}</div><div class="emp-cell-code">${escHtml(emp.code)}${facTag}</div></td>${cells}</tr>`;
   });
 
   const totals = {};
@@ -2248,10 +2268,10 @@ function downloadMatrixCSV() {
   const dates = Object.keys(histMatrixData).sort();
   if (!dates.length || !histMatrixEmps.length) { showToast('No data to export', 'error'); return; }
   const depts = (session.departments && session.departments.length > 0) ? session.departments : [session.department];
-  const headers = ['Employee Code', 'Employee Name', 'Department', ...dates];
+  const headers = ['Employee Code', 'Employee Name', 'Facility', 'Department', ...dates];
   const rows = histMatrixEmps.map(emp => {
     const cells = dates.map(d => { const rec = histMatrixData[d] && histMatrixData[d][emp.code]; return rec ? (rec.status || '') : ''; });
-    return [emp.code, emp.name, emp.dept, ...cells].map(v => csvCell(v));
+    return [emp.code, emp.name, emp.facility || session.facility, emp.dept, ...cells].map(v => csvCell(v));
   });
   const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
   const fromDate = dates[0], toDate = dates[dates.length-1];
