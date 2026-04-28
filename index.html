@@ -648,6 +648,7 @@ const CFG = {
   CHECK_SUBMISSION_URL: 'https://n8n.snitch-workflow.com/webhook/check-submission',
   REWRITE_REQUEST_URL:  'https://n8n.snitch-workflow.com/webhook/rewrite-request',
   GET_HISTORY_URL:      'https://n8n.snitch-workflow.com/webhook/get-attendance-history',
+  GET_HISTORY_RANGE_URL:'https://n8n.snitch-workflow.com/webhook/get-history-range',
   GET_REQUESTS_URL:     'https://n8n.snitch-workflow.com/webhook/get-rewrite-requests',
   HANDLE_APPROVAL_URL:  'https://n8n.snitch-workflow.com/webhook/handle-approval',
   TODAY_STATUS_URL:     'https://n8n.snitch-workflow.com/webhook/today-dept-status',
@@ -2089,39 +2090,75 @@ async function loadHistory() {
   const depts = (session.departments && session.departments.length > 0) ? session.departments : [session.department];
 
   try {
-    // Determine correct marked_by to query with.
-    // submissionState.marked_by is set when the mark tab has been loaded for today.
-    // For past dates or when state is stale, we try both the logged-in supervisor
-    // AND the actual submitter (if known) so records are always found.
     const _submittedBy = (submissionState && submissionState.marked_by)
       ? submissionState.marked_by : null;
     const supervisorsToTry = _submittedBy && _submittedBy !== session.supervisor_name
       ? [_submittedBy, session.supervisor_name]
       : [session.supervisor_name];
 
-    const allFetches = [];
-    dates.forEach(date => {
+    let results = [];
+
+    if (dates.length > 1 && CFG.GET_HISTORY_RANGE_URL) {
+      // MULTI-DAY: use range endpoint — single call per dept+supervisor
+      const rangeFetches = [];
       depts.forEach(dept => {
         supervisorsToTry.forEach(sv => {
-          allFetches.push(
-            fetch(`${CFG.GET_HISTORY_URL}?facility=${encodeURIComponent(session.facility)}&department=${encodeURIComponent(dept)}&attendance_date=${date}&supervisor_name=${encodeURIComponent(sv)}`)
+          rangeFetches.push(
+            fetch(`${CFG.GET_HISTORY_RANGE_URL}?facility=${encodeURIComponent(session.facility)}&department=${encodeURIComponent(dept)}&date_from=${fromDate}&date_to=${toDate}&supervisor_name=${encodeURIComponent(sv)}`)
               .then(r => r.ok ? r.json() : Promise.resolve({ records: [] }))
-              .then(data => ({ date, dept, records: data.records || [], _sv: sv }))
-              .catch(() => ({ date, dept, records: [], _sv: sv }))
+              .then(data => {
+                // Range endpoint returns all records flat; group them by date for the same matrix structure
+                const byDate = {};
+                (data.records || []).forEach(r => {
+                  const d = (r.ATTENDANCE_DATE || r.attendance_date || '').slice(0, 10);
+                  if (!d) return;
+                  if (!byDate[d]) byDate[d] = [];
+                  byDate[d].push(r);
+                });
+                return Object.entries(byDate).map(([date, records]) => ({ date, dept, records, _sv: sv }));
+              })
+              .catch(() => [])
           );
         });
       });
-    });
-    const results = await Promise.all(allFetches);
+      const grouped = await Promise.all(rangeFetches);
+      results = grouped.flat();
+    } else {
+      // SINGLE-DAY or no range endpoint: one call per date (original behaviour)
+      const allFetches = [];
+      dates.forEach(date => {
+        depts.forEach(dept => {
+          supervisorsToTry.forEach(sv => {
+            allFetches.push(
+              fetch(`${CFG.GET_HISTORY_URL}?facility=${encodeURIComponent(session.facility)}&department=${encodeURIComponent(dept)}&attendance_date=${date}&supervisor_name=${encodeURIComponent(sv)}`)
+                .then(r => r.ok ? r.json() : Promise.resolve({ records: [] }))
+                .then(data => ({ date, dept, records: data.records || [], _sv: sv }))
+                .catch(() => ({ date, dept, records: [], _sv: sv }))
+            );
+          });
+        });
+      });
+      results = await Promise.all(allFetches);
+    }
 
     // Build matrix data structure — deduplicate: first result with records wins per date+dept
+    // Build a lookup from the loaded employees array (has correct _facility from employee master).
+    // Snowflake returns the HEADER's facility for all records, not the employee's home facility,
+    // so we override with the known value from the employee list where available.
+    const empFacLookup = {};
+    employees.forEach(e => {
+      const code = String(e.employee_code || '');
+      if (code) empFacLookup[code] = e._facility || e.facility || session.facility;
+    });
+
     const empMeta = {};
     results.forEach(({ date, dept, records }) => {
       if (!histMatrixData[date]) histMatrixData[date] = {};
       records.forEach(r => {
         const code     = r.EMPLOYEE_CODE || r.employee_code || '';
         const name     = r.EMPLOYEE_NAME || r.employee_name || '';
-        const facility = r.FACILITY      || r.facility      || session.facility;
+        // Use employee master facility if available; fall back to Snowflake value
+        const facility = empFacLookup[code] || r.FACILITY || r.facility || session.facility;
         if (code && !empMeta[code]) empMeta[code] = { name, dept, facility };
         // Only write if not already populated (first fetch for this code+date wins)
         if (code && !histMatrixData[date][code]) {
