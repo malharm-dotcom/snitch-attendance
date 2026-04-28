@@ -2104,8 +2104,7 @@ async function loadHistory() {
       depts.forEach(dept => {
         supervisorsToTry.forEach(sv => {
           rangeFetches.push(
-            // REPLACE WITH:
-fetch(`${CFG.GET_HISTORY_RANGE_URL}?facility=${encodeURIComponent(session.facility)}&department=${encodeURIComponent(dept)}&from_date=${fromDate}&to_date=${toDate}&supervisor_name=${encodeURIComponent(sv)}`)
+            fetch(`${CFG.GET_HISTORY_RANGE_URL}?facility=${encodeURIComponent(session.facility)}&department=${encodeURIComponent(dept)}&from_date=${fromDate}&to_date=${toDate}&supervisor_name=${encodeURIComponent(sv)}`)
               .then(r => r.ok ? r.json() : Promise.resolve({ records: [] }))
               .then(data => {
                 // Range endpoint returns all records flat; group them by date for the same matrix structure
